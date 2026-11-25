@@ -14,6 +14,7 @@ on:
       - ".github/workflows/manaos-android-build.yml"
       - "docs/**"
       - "integration/**"
+      - "tools/**"
   workflow_dispatch:
 
 permissions:
@@ -31,6 +32,13 @@ jobs:
     steps:
       - name: Checkout build repository
         uses: actions/checkout@v4
+
+      - name: Run MANA tooling regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile tools/mana_code_intelligence.py tools/mana_ai_code_author.py tools/mana_patch_gate.py tools/mana_build_quality_gate.py
+          python3 -m unittest discover -s tools/tests -v
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
