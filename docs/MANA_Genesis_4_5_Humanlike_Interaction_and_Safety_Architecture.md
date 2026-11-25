@@ -105,6 +105,12 @@ This document extends the existing ManaCognitiveRuntime architecture. It does no
 
 The architecture must preserve the existing rule: one MANA identity, bounded cognitive loop, default-deny policy, owner approval for sensitive actions, and no hidden chain-of-thought storage.
 
+### Implementation checkpoint (2026-11-25)
+
+The Android integration now includes a bounded in-memory dialogue state (30 turns by default, text fields capped at 500 characters), local memory review and explicit clear controls, and an optional `ManaDialogueState` input to `ManaCognitiveRuntime`. The runtime passes up to 12 recent turns alongside recalled memory to a future reasoning-model adapter. Both are explicitly classified as untrusted reference data: text found inside a memory or prior turn must not override system policy or become a tool instruction.
+
+This is a context-plumbing and safety-contract milestone, not a completed prompt-injection defense. The actual model adapter must enforce the trust boundary, and the home-screen cloud chat is not yet wired through `ManaCognitiveRuntime`. No real model, retrieval service, or Android action adapter is claimed to be connected.
+
 ## References
 
 - Stanford Generative Agents: https://doi.org/10.1145/3586183.3606763
