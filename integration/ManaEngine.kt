@@ -204,7 +204,8 @@ object ManaEnginePrompt {
                 JSONObject().put("kind", it.kind.take(80)).put("text", it.text.take(1200))
             }))
             .put("recentDialogue", JSONArray(context.recentDialogue.take(12).map {
-                JSONObject().put("role", it.role.take(40)).put("text", it.text.take(1200))
+                JSONObject().put("topic", it.topic.take(300)).put("userSummary", it.userSummary.take(700))
+                    .put("assistantSummary", it.assistantSummary.take(700)).put("tone", it.tone.name)
             }))
             .put("retrievedSources", JSONArray(context.retrievedSources.take(5).map {
                 JSONObject().put("sourceId", it.sourceId).put("title", it.title)
