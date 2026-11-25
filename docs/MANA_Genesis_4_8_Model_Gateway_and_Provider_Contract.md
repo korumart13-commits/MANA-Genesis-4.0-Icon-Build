@@ -163,3 +163,8 @@ Allowed values are:
 - `all`: restore normal interruptions and turn off Do Not Disturb.
 
 The executor rejects every other value and extra argument, checks Android policy access before consuming the one-time approval token, and applies the filter only after exact-token consumption. The selected filter remains active until the owner changes it; this action does not schedule an automatic end time. If access is missing, nothing changes and the owner must first open the Do Not Disturb access page and grant it manually. The owner dialog states the persistent effect before confirmation.
+
+
+## Read-only audio and ringer status
+
+`device.read_audio_status` reports only the current ringer mode and the numeric ring/media volume levels using Android's `AudioManager`. It does not play audio, record microphone input, change volume, or alter ringer mode. The tool is read-only and can be queried without a special Android role.
