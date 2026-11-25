@@ -19,6 +19,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: manaos-android-build-${{ github.ref }}
@@ -82,17 +83,32 @@ jobs:
           echo "dir=$project_dir" >> "$GITHUB_OUTPUT"
           echo "Using Android project: $project_dir"
 
-      - name: Install Blender
-        uses: bradyajohnston/setup-blender@v5
-        with:
-          version: "4.5"
-
-      - name: Generate and bundle original MANA 3D avatar
+      - name: Find latest successful MANA avatar asset build
+        id: avatar
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$GITHUB_WORKSPACE/avatar-build" "$GITHUB_WORKSPACE/avatar-renderer/examples/jsm/loaders" "$GITHUB_WORKSPACE/avatar-renderer/examples/jsm/utils"
-          blender --background --python "$GITHUB_WORKSPACE/tools/build_mana_avatar.py" -- --output "$GITHUB_WORKSPACE/avatar-build/mana_avatar.glb"
+          branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          run_id="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/mana-avatar-ci.yml/runs?branch=$branch&status=success&per_page=10" --jq '.workflow_runs[0].id')"
+          test -n "$run_id" && test "$run_id" != "null"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+
+      - name: Download generated MANA avatar GLB
+        uses: actions/download-artifact@v4
+        with:
+          name: MANA-original-avatar-GLB
+          run-id: ${{ steps.avatar.outputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: avatar-build
+
+      - name: Download pinned local Three.js renderer
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/avatar-renderer/examples/jsm/loaders" "$GITHUB_WORKSPACE/avatar-renderer/examples/jsm/utils"
           curl --fail --location --retry 3 "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js" --output "$GITHUB_WORKSPACE/avatar-renderer/three.module.js"
           curl --fail --location --retry 3 "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.core.js" --output "$GITHUB_WORKSPACE/avatar-renderer/three.core.js"
           curl --fail --location --retry 3 "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js" --output "$GITHUB_WORKSPACE/avatar-renderer/examples/jsm/loaders/GLTFLoader.js"
