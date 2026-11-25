@@ -175,6 +175,8 @@ class ManaToolTests(unittest.TestCase):
         self.assertIn('missingDeviceCredentialFailsBeforeNetwork', gateway_test)
         self.assertIn('configRequiresExactHttpsAllowlistedHostAndRoute', gateway_test)
         self.assertIn('stopRequestedBeforeCallPreventsNetwork', gateway_test)
+        self.assertIn('malformedDeviceTokenIsRejectedBeforeNetwork', gateway_test)
+        self.assertIn('[A-Za-z0-9._~+/=-]{16,4096}', adapter)
 
     def run_patch_gate(self, project: Path, patch_text: str, *extra: str):
         patch = project.parent / "proposal.patch"
