@@ -124,7 +124,9 @@ class ManaCognitiveRuntime(
                 observations += "Инструмент ${action.name}: ${result.summary.take(500)}"
             }
 
-            if (answer == null && decision.stopAfterActions) {
+            if (answer == null && approvalRequests.isNotEmpty()) {
+                answer = "Я отправила запрос на подтверждение владельцу. Пока исполнитель не подключён, ничего не изменено."
+            } else if (answer == null && decision.stopAfterActions) {
                 answer = decision.finalAnswer?.takeIf { it.isNotBlank() }
                     ?: "Готово. Я выполнила доступные действия и проверила их результат."
             }
