@@ -2,28 +2,37 @@
 
 ## Source issues corrected
 Two Kotlin JSON-decoding expressions used `String.ifBlank { null }`:
-- `integration/AndroidSelfDevelopment.kt`: sourceReference
-- `integration/ManaDevelopmentPipeline.kt`: patchReference
+- `integration/AndroidSelfDevelopment.kt`: `sourceReference`
+- `integration/ManaDevelopmentPipeline.kt`: `patchReference`
 
-The default lambda for `ifBlank` must return a non-null CharSequence. Both expressions now use `takeIf { it.isNotBlank() }`, which correctly produces a nullable String.
+The default lambda for `ifBlank` must return a non-null `CharSequence`. Both expressions now use `takeIf { it.isNotBlank() }`, which correctly produces a nullable `String`.
 
-A Python regression test now scans integration Kotlin sources and rejects reintroduction of `ifBlank { null }`.
+A Python regression test scans integration Kotlin sources and rejects reintroduction of `ifBlank { null }`.
 
-## GitHub Actions evidence
-The latest visible runs before/around these changes:
-- Run 50, commit `b7d00c1`: conclusion failure.
-- Run 51, commit `b66c244`: conclusion failure.
+## Additional regression coverage
+The Python test suite now also exercises the isolated patch gate in temporary directories:
+- accepts and applies a change to an allowlisted Kotlin file;
+- rejects AndroidManifest edits;
+- rejects path traversal;
+- checks both old and new paths, preventing a protected file from being renamed into an allowed path;
+- rejects a full update unless the exact owner-approval token is supplied.
 
-The GitHub Actions API returned zero jobs for both runs. Consequently there are no job steps or job logs available to identify whether failure occurred during workflow validation, runner allocation, or before the first step. The failures cannot be attributed conclusively to the Kotlin compile issue.
+These tests are committed to the branch, but have not yet been confirmed as executed by a successful CI run.
 
-The later test-only commit `ab2c211` is the current branch head. No subsequent run is visible in the first page of the Actions run listing.
+## GitHub Actions evidence and limits
+- Previously observed run 50 (commit `b7d00c1`) and run 51 (commit `b66c244`) were reported as failed.
+- The job-list endpoint returned zero jobs for those runs, so there were no step logs available through that endpoint.
+- Important limitation: the available commit-workflow-runs connector only returns pull-request-triggered runs; it does not provide a complete listing of push-triggered runs. It returned no PR-triggered run for commit `42c78b5a8381ae48fe1e4260ae1e5de41ec25506`.
+- The combined commit-status endpoint also returned no status contexts for that commit.
+
+Therefore the available evidence does not establish whether the failures were caused by workflow validation, repository Actions settings, runner allocation, or an early failure before job creation. It also does not prove that no push-triggered run occurred. The exact root cause remains unconfirmed; attributing the failures to the Kotlin compile issue would be speculation.
 
 ## Validation status
-- Source-level Kotlin defects above: corrected by inspection.
-- Python regression tests: added to CI, but no successful runner execution is available to confirm them.
+- The two Kotlin nullable-default expressions: corrected by source inspection.
+- Python regression tests: expanded, execution not confirmed.
 - Android Gradle build: not confirmed.
-- APK: no new APK is claimed.
-- No PR merge, release publication, phone installation, or firmware modification was performed.
+- New APK: not claimed.
+- PR merge, release publication, phone installation, and firmware modification: not performed.
 
 ## Next diagnostic requirement
-A GitHub Actions run with an actual job record and accessible step logs is required. If GitHub continues to report zero jobs, inspect repository Actions enablement and workflow validation in the repository's Actions/Checks UI before further code changes.
+A complete Actions run record or a job log is required to identify the workflow-level failure. The repository Actions/Checks UI may expose validation or runner diagnostics that are not available through the current connector endpoints. Do not treat an empty PR-only run listing as proof that push workflows did not run.
