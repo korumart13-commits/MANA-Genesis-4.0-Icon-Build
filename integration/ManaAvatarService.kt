@@ -39,7 +39,14 @@ class ManaAvatarService : Service() {
             Intent(this, ManaAvatarService::class.java).setAction(ACTION_STOP),
             PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_IMMUTABLE else 0))
         val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, CHANNEL) else Notification.Builder(this)
+        val openMana = PendingIntent.getActivity(
+            this, 1,
+            Intent(this, com.mana.os.app.ManaHomeActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_IMMUTABLE else 0)
+        )
         val notification = builder.setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentIntent(openMana)
             .setContentTitle("MANA · аватар активен")
             .setContentText("Фоновый аватар работает. Нажми «Остановить», чтобы скрыть его.")
             .setOngoing(true)
