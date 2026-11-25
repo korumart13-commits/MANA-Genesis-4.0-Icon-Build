@@ -100,6 +100,13 @@ class ManaGatewayChatService(
 
     fun stop(): Boolean = activeSignal?.requestStop() ?: false
 
+    @Synchronized
+    fun close() {
+        stop()
+        localRuntime?.close()
+        localRuntime = null
+    }
+
     private object NoAvailableManaTools : ManaCancellableCognitiveTools {
         override fun availableTools(): List<String> = emptyList()
         override fun execute(action: ManaCognitiveAction): ManaCognitiveToolResult =
