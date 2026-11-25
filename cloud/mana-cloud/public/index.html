@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#071426">
+<title>Операционная система Мартыновы — MANA</title>
+<style>
+:root{color-scheme:dark;--bg:#071426;--panel:#102b50;--line:#23476d;--cyan:#54c8f5;--text:#eaf4ff;--muted:#a9bfd5}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 75% 0%,#153b65 0,transparent 42%),var(--bg);color:var(--text);font:16px/1.6 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:1000px;margin:auto;padding:28px 20px 64px}.top{display:flex;align-items:center;gap:12px;color:var(--cyan);font-weight:700;letter-spacing:.08em}
+.logo{width:42px;height:42px;border:1px solid var(--cyan);border-radius:14px;display:grid;place-items:center;font-size:20px}
+.hero{padding:76px 0 48px}.eyebrow{color:var(--cyan);text-transform:uppercase;letter-spacing:.16em;font-size:12px;font-weight:700}
+h1{font-size:clamp(38px,8vw,68px);line-height:1.04;margin:14px 0 20px;max-width:800px}
+p{color:var(--muted)}.lead{font-size:19px;max-width:720px}
+.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}a{color:var(--cyan)}.btn{display:inline-block;padding:12px 18px;border-radius:12px;border:1px solid var(--cyan);text-decoration:none;color:var(--text);font-weight:650}.primary{background:var(--cyan);color:#041426}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:28px 0}
+.card{background:linear-gradient(145deg,#102b50,#0b203b);border:1px solid var(--line);border-radius:18px;padding:20px}
+.card h2{font-size:19px;margin:0 0 8px}.card p{margin:0}
+section{margin-top:48px}h2.section{font-size:26px}
+.status{display:inline-flex;align-items:center;gap:9px;padding:8px 12px;border:1px solid var(--line);border-radius:99px;color:var(--muted);font-size:14px}
+.dot{width:8px;height:8px;border-radius:50%;background:#f0b85c}
+code{color:var(--cyan);overflow-wrap:anywhere}.foot{border-top:1px solid var(--line);margin-top:56px;padding-top:20px;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body><main>
+<div class="top"><div class="logo">M</div><div>MANA · MARTYNOVY OS</div></div>
+<header class="hero">
+<div class="eyebrow">Единая интеллектуальная система</div>
+<h1>Операционная система Мартыновы</h1>
+<p class="lead">MANA объединяет локальный интеллект смартфона и облачные модели GPT в одном ассистенте. Локальные модели могут работать на устройстве автономно, а облачный канал подключается для задач, которым нужны дополнительные возможности.</p>
+<div class="actions"><a class="btn primary" href="#architecture">Как устроена MANA</a><a class="btn" href="#connection">Подключение устройства</a></div>
+<p><span class="status"><span class="dot" id="dot"></span><span id="status">Проверяем доступность сервера…</span></span></p>
+</header>
+<section id="architecture"><h2 class="section">Одна MANA — два вычислительных контура</h2>
+<div class="grid">
+<article class="card"><h2>MANA Engine · смартфон</h2><p>Локальные модели, приватная память, голос, аватар и Android-инструменты. Локальные данные остаются на телефоне, пока пользователь не разрешит их передачу.</p></article>
+<article class="card"><h2>MANA Cloud · сервер</h2><p>Защищённый шлюз к официальному API GPT. Сервер не содержит веса GPT и не подменяет локальный движок — он передаёт запросы и возвращает ответы.</p></article>
+<article class="card"><h2>Общий контекст</h2><p>Приложение может передать выбранный фрагмент локального контекста в облако, а затем передать ответ GPT обратно локальной модели для дальнейшей обработки.</p></article>
+</div></section>
+<section id="connection"><h2 class="section">Защищённое подключение</h2>
+<p>Обмен выполняется по HTTPS. Секрет API GPT хранится только в серверном хранилище секретов, а не в APK или браузере. Запросы к GPT требуют токен авторизованного устройства. Не отправляйте сюда пароли, приватные ключи или резервные коды.</p>
+<p>Для реального запуска администратор должен настроить секреты <code>OPENAI_API_KEY</code> и <code>MANA_DEVICE_TOKEN</code>. Этот демонстрационный шлюз использует общий токен одного устройства; перед подключением нескольких устройств нужна отдельная регистрация ключей и отзыв доступа по каждому устройству.</p>
+</section>
+<section><h2 class="section">Состояние сервиса</h2><p id="health">Статус API загружается…</p></section>
+<div class="foot">© MANA · Операционная система Мартыновы. Независимый проект. Android и GPT являются товарными знаками их правообладателей.</div>
+</main>
+<script>
+fetch('/api/health').then(r=>r.json()).then(s=>{
+ const ok=s.status==='online';document.getElementById('dot').style.background=ok?'#62d69b':'#f0b85c';
+ document.getElementById('status').textContent=ok?'Сервер отвечает':'Сервер недоступен';
+ document.getElementById('health').textContent='API: '+(ok?'доступен':'недоступен')+' · GPT API: '+(s.gptConfigured?'настроен':'ожидает настройки')+' · авторизация устройства: '+(s.deviceAuthConfigured?'настроена':'ожидает настройки')+'.';
+}).catch(()=>{document.getElementById('status').textContent='Сайт открыт; API пока не развёрнут';document.getElementById('health').textContent='Проверка API не удалась.';});
+</script>
+</body></html>
