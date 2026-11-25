@@ -88,13 +88,17 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y blender
-          mkdir -p "$GITHUB_WORKSPACE/avatar-build" "$GITHUB_WORKSPACE/avatar-renderer"
+          mkdir -p "$GITHUB_WORKSPACE/avatar-build" "$GITHUB_WORKSPACE/avatar-renderer/examples/jsm/loaders" "$GITHUB_WORKSPACE/avatar-renderer/examples/jsm/utils"
           blender --background --python "$GITHUB_WORKSPACE/tools/build_mana_avatar.py" -- --output "$GITHUB_WORKSPACE/avatar-build/mana_avatar.glb"
           curl --fail --location --retry 3 "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js" --output "$GITHUB_WORKSPACE/avatar-renderer/three.module.js"
-          curl --fail --location --retry 3 "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js" --output "$GITHUB_WORKSPACE/avatar-renderer/GLTFLoader.js"
+          curl --fail --location --retry 3 "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.core.js" --output "$GITHUB_WORKSPACE/avatar-renderer/three.core.js"
+          curl --fail --location --retry 3 "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js" --output "$GITHUB_WORKSPACE/avatar-renderer/examples/jsm/loaders/GLTFLoader.js"
+          curl --fail --location --retry 3 "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/utils/BufferGeometryUtils.js" --output "$GITHUB_WORKSPACE/avatar-renderer/examples/jsm/utils/BufferGeometryUtils.js"
           test -s "$GITHUB_WORKSPACE/avatar-build/mana_avatar.glb"
           test -s "$GITHUB_WORKSPACE/avatar-renderer/three.module.js"
-          test -s "$GITHUB_WORKSPACE/avatar-renderer/GLTFLoader.js"
+          test -s "$GITHUB_WORKSPACE/avatar-renderer/three.core.js"
+          test -s "$GITHUB_WORKSPACE/avatar-renderer/examples/jsm/loaders/GLTFLoader.js"
+          test -s "$GITHUB_WORKSPACE/avatar-renderer/examples/jsm/utils/BufferGeometryUtils.js"
 
       - name: Integrate MANA runtime and dashboard into the temporary source copy
         shell: bash
