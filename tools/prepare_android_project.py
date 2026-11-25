@@ -61,6 +61,16 @@ def replace_once(source: str, old: str, new: str, label: str) -> str:
         return source
     raise SystemExit(f"Refusing unsafe Android source edit ({label}): expected one anchor, found {count}.")
 
+def ensure_audio_permission(manifest_text: str) -> str:
+    """Add MODIFY_AUDIO_SETTINGS with a real newline, exactly once."""
+    permission = '    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\\n'
+    if "android.permission.MODIFY_AUDIO_SETTINGS" not in manifest_text:
+        manifest_text = replace_once(
+            manifest_text, "<application", permission + "    <application",
+            "MANA audio settings permission"
+        )
+    return manifest_text
+
 
 def write_gateway_deployment_config(project: Path, endpoint: str, expected_host: str) -> None:
     endpoint = endpoint.strip()
@@ -299,16 +309,12 @@ def main() -> None:
 
     manifest = project / "app/src/main/AndroidManifest.xml"
     manifest_text = manifest.read_text(encoding="utf-8")
-    audio_permission = '    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\\n'
+'
     for permission in ("android.permission.SYSTEM_ALERT_WINDOW", "android.permission.FOREGROUND_SERVICE", "android.permission.FOREGROUND_SERVICE_SPECIAL_USE", "android.permission.POST_NOTIFICATIONS"):
         if permission not in manifest_text:
             permission_line = '    <uses-permission android:name="' + permission + '" />\n'
             manifest_text = replace_once(manifest_text, "<application", permission_line + "    <application", "MANA permission " + permission)
-    if "android.permission.MODIFY_AUDIO_SETTINGS" not in manifest_text:
-        manifest_text = replace_once(
-            manifest_text, "<application", audio_permission + "    <application",
-            "MANA audio settings permission"
-        )
+    manifest_text = ensure_audio_permission(manifest_text)
     if "<queries>" not in manifest_text:
         launcher_visibility = """    <queries>
         <intent>
