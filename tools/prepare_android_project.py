@@ -120,6 +120,11 @@ def main() -> None:
     app_source_dir = project / "app/src/main/java/com/mana/os/app"
     app_source_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy2(home_source, app_source_dir / "ManaHomeActivity.kt")
+    avatar_service_source = integration / "ManaAvatarService.kt"
+    if not avatar_service_source.is_file() or avatar_service_source.stat().st_size == 0:
+        raise SystemExit("MANA persistent avatar service source is missing or empty.")
+    shutil.copy2(avatar_service_source, target_dir / "ManaAvatarService.kt")
+
     diary_source = integration / "ManaDiaryActivity.kt"
     if not diary_source.is_file() or diary_source.stat().st_size == 0:
         raise SystemExit("MANA diary activity source is missing or empty.")
@@ -242,6 +247,10 @@ def main() -> None:
     manifest = project / "app/src/main/AndroidManifest.xml"
     manifest_text = manifest.read_text(encoding="utf-8")
     audio_permission = '    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\\n'
+    for permission in ("android.permission.SYSTEM_ALERT_WINDOW", "android.permission.FOREGROUND_SERVICE", "android.permission.FOREGROUND_SERVICE_SPECIAL_USE", "android.permission.POST_NOTIFICATIONS"):
+        if permission not in manifest_text:
+            permission_line = '    <uses-permission android:name="' + permission + '" />\n'
+            manifest_text = replace_once(manifest_text, "<application", permission_line + "    <application", "MANA permission " + permission)
     if "android.permission.MODIFY_AUDIO_SETTINGS" not in manifest_text:
         manifest_text = replace_once(
             manifest_text, "<application", audio_permission + "    <application",
@@ -306,6 +315,9 @@ def main() -> None:
         home_activity + '        <activity android:name="com.mana.os.app.MainActivity" android:exported="true">',
         "MANA home activity manifest entry",
     )
+    avatar_service = """        <service android:name="com.mana.os.integration.ManaAvatarService" android:exported="false" android:stopWithTask="false" android:foregroundServiceType="specialUse">\n            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Persistent user-requested MANA avatar overlay" />\n        </service>\n"""
+    if "com.mana.os.integration.ManaAvatarService" not in manifest_text:
+        manifest_text = replace_once(manifest_text, "</application>", avatar_service + "    </application>", "MANA persistent avatar service")
     manifest.write_text(manifest_text, encoding="utf-8")
 
     print("Integrated MANA home activity, local self-development, license and Android core tests.")
