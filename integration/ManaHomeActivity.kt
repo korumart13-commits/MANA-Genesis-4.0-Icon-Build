@@ -324,7 +324,8 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
             append("Ожидают решения: ").append(pending.size)
             append("\n\nОдобрение MANA не равно системному разрешению Android.")
             append("\nНикакие разрешения Android не выдаются автоматически.")
-            append("\nПодтверждённые запросы сейчас не исполняются: исполнитель действий ещё не подключён.")
+            append("\nДоступно с подтверждением: запуск приложения, найденного Android.")
+            append("\nОстальные действия пока заблокированы и не исполняются.")
             append("\n\nПоследние события:")
             if (events.isEmpty()) append("\nПока событий нет.")
             events.forEach { event ->
