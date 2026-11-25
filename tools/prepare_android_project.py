@@ -41,13 +41,13 @@ def write_gateway_deployment_config(project: Path, endpoint: str, expected_host:
     output = project / "app/src/main/java/com/mana/os/integration/ManaGatewayDeploymentConfig.kt"
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
-        "package com.mana.os.integration\\n\\n"
-        "/** Generated from trusted build variables; blank values intentionally mean offline mode. */\\n"
-        "object ManaGatewayDeploymentConfig {\\n"
-        f"    const val ENDPOINT = {json.dumps(endpoint)}\\n"
-        f"    const val EXPECTED_HOST = {json.dumps(expected_host)}\\n"
-        "    fun isConfigured(): Boolean = ENDPOINT.isNotBlank() && EXPECTED_HOST.isNotBlank()\\n"
-        "}\\n",
+        "package com.mana.os.integration\n\n"
+        "/** Generated from trusted build variables; blank values intentionally mean offline mode. */\n"
+        "object ManaGatewayDeploymentConfig {\n"
+        f"    const val ENDPOINT = {json.dumps(endpoint)}\n"
+        f"    const val EXPECTED_HOST = {json.dumps(expected_host)}\n"
+        "    fun isConfigured(): Boolean = ENDPOINT.isNotBlank() && EXPECTED_HOST.isNotBlank()\n"
+        "}\n",
         encoding="utf-8",
     )
 
