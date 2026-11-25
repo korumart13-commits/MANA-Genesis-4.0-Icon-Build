@@ -10,6 +10,7 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.speech.RecognizerIntent
+import android.speech.tts.TextToSpeech
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -22,7 +23,9 @@ import com.mana.os.integration.ManaGenesis
 import java.util.Locale
 
 /** First MANA home surface. Cloud status is truthful; no server URL is requested from the owner. */
-class ManaHomeActivity : Activity() {
+class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
+    private var textToSpeech: TextToSpeech? = null
+    private var ttsReady = false
     private val prefs by lazy { getSharedPreferences("mana_setup", MODE_PRIVATE) }
     private lateinit var content: LinearLayout
     private lateinit var status: TextView
@@ -38,6 +41,7 @@ class ManaHomeActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        textToSpeech = TextToSpeech(this, this)
         window.statusBarColor = bg
         window.navigationBarColor = bg
         renderHome()
@@ -151,9 +155,9 @@ class ManaHomeActivity : Activity() {
     private fun sendMessage() {
         val text = message.text.toString().trim()
         if (text.isEmpty()) return
-        chatLog.text = "Ты: $text\n\n" + if (!cloudReady) {
-            "Мана: сейчас я работаю локально. Облачный чат не подключён — сервер нельзя придумать или подменить. Твоё сообщение не отправлено."
-        } else "Мана: отправляю сообщение…"
+        val offlineReply = "Сейчас я работаю локально. Облачный чат не подключён, поэтому сообщение не отправлено."
+        chatLog.text = "Ты: $text\n\n" + if (!cloudReady) "Мана: $offlineReply" else "Мана: отправляю сообщение…"
+        if (!cloudReady) speak(offlineReply)
         message.setText("")
         (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
             .hideSoftInputFromWindow(message.windowToken, 0)
@@ -162,6 +166,7 @@ class ManaHomeActivity : Activity() {
             ManaCloudClient(url, prefs.getString("cloud_token", null)).sendMessage(text) { answer, error ->
                 runOnUiThread {
                     chatLog.text = "Ты: $text\n\n" + (answer?.let { "Мана: $it" } ?: "Мана: ошибка облака — $error")
+                    answer?.let { speak(it) }
                 }
             }
         }
@@ -194,6 +199,30 @@ class ManaHomeActivity : Activity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 702 && grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) startVoiceInput()
         else if (requestCode == 702) toast("Доступ к микрофону не выдан. Можно продолжить текстом.")
+    }
+
+
+    override fun onInit(status: Int) {
+        ttsReady = status == TextToSpeech.SUCCESS
+        if (ttsReady) {
+            val result = textToSpeech?.setLanguage(Locale("ru", "RU"))
+            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                ttsReady = false
+            }
+        }
+    }
+
+    private fun speak(text: String) {
+        if (ttsReady && text.isNotBlank()) {
+            textToSpeech?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "mana_reply")
+        }
+    }
+
+    override fun onDestroy() {
+        textToSpeech?.stop()
+        textToSpeech?.shutdown()
+        textToSpeech = null
+        super.onDestroy()
     }
 
     private fun showInstalledApps() {
