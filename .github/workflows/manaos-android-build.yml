@@ -61,7 +61,34 @@ jobs:
           chmod +x "$WRAPPER"
           echo "Using project: $PROJECT_DIR"
 
-      - name: Inspect source around known Kotlin syntax error
+      - name: Repair malformed welcome string in source copy
+        working-directory: \${{ steps.project.outputs.dir }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          file = Path("app/src/main/java/com/mana/os/app/MainActivity.kt")
+          source = file.read_text(encoding="utf-8")
+          broken = 'base("MANA", "Первоначальная настройка\nЯ стану твоим главным интерфейсом, сохраняя Android в качестве системной основы.")'
+          fixed = 'base("MANA", "Первоначальная настройка. Я стану твоим главным интерфейсом, сохраняя Android в качестве системной основы.")'
+
+          if broken in source:
+              source = source.replace(broken, fixed, 1)
+              file.write_text(source, encoding="utf-8")
+              print("Fixed the broken multiline Kotlin string.")
+          elif fixed in source:
+              print("Welcome string is already fixed; no change needed.")
+          else:
+              raise SystemExit("Expected welcome string was not found; refusing to patch an unrelated source file.")
+
+          check = file.read_text(encoding="utf-8")
+          if fixed not in check:
+              raise SystemExit("Post-patch verification failed.")
+          print("Post-patch verification passed.")
+
+      - name: Verify repaired Kotlin source
         working-directory: ${{ steps.project.outputs.dir }}
         shell: bash
         run: |
@@ -79,7 +106,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew --no-daemon --stacktrace assembleDebug
+          ./gradlew --no-daemon --continue --stacktrace assembleDebug
 
       - name: Collect APKs
         if: success()
