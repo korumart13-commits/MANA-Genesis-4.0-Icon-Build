@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}
+canvas{display:block;width:100%;height:100%}
+#status{position:absolute;inset:auto 0 4px;text-align:center;color:#8fb7dc;font:10px sans-serif;pointer-events:none}
+</style>
+<script type="importmap">{"imports":{"three":"./three.module.js"}}</script>
+</head>
+<body>
+<div id="status">Загружаю аватар Маны…</div>
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "./GLTFLoader.js";
+
+const status = document.getElementById("status");
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 30);
+camera.position.set(0, -3.1, 1.12);
+camera.lookAt(0, 0, 1.0);
+const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true, powerPreference:"low-power"});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+document.body.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xc9e8ff, 0x14233c, 2.0));
+const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(2,-3,4); scene.add(key);
+const rim = new THREE.DirectionalLight(0x42baff, 1.1); rim.position.set(-2,2,2); scene.add(rim);
+
+let mixer = null;
+let avatar = null;
+let speaking = false;
+let mouthTargets = [];
+let blinkTargets = [];
+let blinkValue = 0;
+let blinkUntil = 0;
+const loader = new GLTFLoader();
+loader.load("./mana_avatar.glb", (gltf) => {
+  avatar = gltf.scene;
+  scene.add(avatar);
+  avatar.position.set(0,0,0);
+  avatar.scale.setScalar(0.98);
+  mixer = new THREE.AnimationMixer(avatar);
+  if (gltf.animations && gltf.animations.length) {
+    mixer.clipAction(gltf.animations[0]).play();
+  }
+  avatar.traverse((node) => {
+    if (!node.isMesh || !node.morphTargetDictionary || !node.morphTargetInfluences) return;
+    for (const [name,index] of Object.entries(node.morphTargetDictionary)) {
+      if (name.toLowerCase().includes("blink")) blinkTargets.push({values:node.morphTargetInfluences,index});
+      if (name.toLowerCase().includes("mouthopen")) mouthTargets.push({values:node.morphTargetInfluences,index});
+    }
+  });
+  status.textContent = "";
+}, undefined, (error) => {
+  status.textContent = "Не удалось загрузить 3D-аватар";
+  console.error(error);
+});
+
+window.ManaAvatar = {
+  setSpeaking(value) { speaking = !!value; }
+};
+function resize() {
+  const w = Math.max(1, document.body.clientWidth), h = Math.max(1, document.body.clientHeight);
+  camera.aspect = w/h; camera.updateProjectionMatrix(); renderer.setSize(w,h,false);
+}
+window.addEventListener("resize", resize); resize();
+let previous = performance.now();
+function animate(now) {
+  requestAnimationFrame(animate);
+  const delta = Math.min((now-previous)/1000, 0.05); previous=now;
+  if (mixer) mixer.update(delta);
+  const targetMouth = speaking ? 0.58 + 0.22*Math.sin(now/95) : 0;
+  for (const target of mouthTargets) target.values[target.index] += (targetMouth-target.values[target.index])*Math.min(1,delta*12);
+  const targetBlink = now < blinkUntil ? 1 : 0;
+  for (const target of blinkTargets) target.values[target.index] += (targetBlink-target.values[target.index])*Math.min(1,delta*24);
+  if (now > blinkUntil && Math.random() < 0.003) blinkUntil = now + 130;
+  if (avatar) avatar.rotation.z = Math.sin(now/2600)*0.025;
+  renderer.render(scene,camera);
+}
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
