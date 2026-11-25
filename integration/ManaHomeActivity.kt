@@ -353,6 +353,8 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
             val request = requests[index]
             val launchLabel = gatewayChat.previewApproval(request)
             val supportedLaunch = request.actionName == "apps.launch" && launchLabel != null
+            val supportedSettingsPage = request.actionName == "settings.open_page" && launchLabel != null
+            val supportedAction = supportedLaunch || supportedSettingsPage
             val details = buildString {
                 append(request.summary)
                 append("\n\nДействие: ").append(request.actionName)
@@ -360,6 +362,9 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
                     append("\n\nПриложение, найденное Android: ").append(launchLabel)
                     append("\nПакет: ").append(request.arguments["package_name"])
                     append("\n\nПосле подтверждения Android получит команду открыть это приложение.")
+                } else if (supportedSettingsPage) {
+                    append("\n\nРаздел настроек Android: ").append(launchLabel)
+                    append("\n\nПосле подтверждения откроется штатная страница Android. MANA не будет менять переключатели или параметры автоматически.")
                 } else {
                     append("\n\nПараметры:")
                     request.arguments.forEach { (key, value) ->
@@ -373,8 +378,12 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
             AlertDialog.Builder(this)
                 .setTitle("Запрос разрешения MANA")
                 .setMessage(details)
-                .setPositiveButton(if (supportedLaunch) "Подтвердить запуск" else "Закрыть без выполнения") { _, _ ->
-                    if (supportedLaunch) {
+                .setPositiveButton(when {
+                    supportedLaunch -> "Подтвердить запуск"
+                    supportedSettingsPage -> "Открыть настройки"
+                    else -> "Закрыть без выполнения"
+                }) { _, _ ->
+                    if (supportedAction) {
                         val result = gatewayChat.confirmApproval(request.requestId)
                         toast(result.message)
                     } else {
