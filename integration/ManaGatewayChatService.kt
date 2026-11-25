@@ -4,7 +4,7 @@ import android.content.Context
 
 /**
  * Connects the configured gateway model to the bounded MANA cognitive loop.
- * This service exposes read-only diagnostics and one narrowly scoped, owner-approved app-launch action.
+ * This service exposes read-only diagnostics, owner-approved app launch, and fixed Android settings-page navigation.
  */
 class ManaGatewayChatService(
     context: Context,
