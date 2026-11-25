@@ -50,6 +50,22 @@ class ManaApprovedActionValidationTest {
     }
 
     @Test
+    fun acceptsOnlyTwoExplicitDoNotDisturbFilters() {
+        assertEquals(ManaDndFilter.PRIORITY, ManaApprovedActionValidation.dndFilter(
+            ManaCognitiveAction("device.set_dnd_filter", mapOf("filter" to "priority"))
+        ))
+        assertEquals(ManaDndFilter.ALL, ManaApprovedActionValidation.dndFilter(
+            ManaCognitiveAction("device.set_dnd_filter", mapOf("filter" to "all"))
+        ))
+        assertNull(ManaApprovedActionValidation.dndFilter(
+            ManaCognitiveAction("device.set_dnd_filter", mapOf("filter" to "none"))
+        ))
+        assertNull(ManaApprovedActionValidation.dndFilter(
+            ManaCognitiveAction("device.set_dnd_filter", mapOf("filter" to "priority", "duration" to "1h"))
+        ))
+    }
+
+    @Test
     fun rejectsArbitrarySettingsActionsAndArguments() {
         assertNull(ManaApprovedActionValidation.settingsPage(
             ManaCognitiveAction("settings.change", mapOf("page" to "wifi"))
