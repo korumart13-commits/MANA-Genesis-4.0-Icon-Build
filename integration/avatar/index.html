@@ -25,7 +25,7 @@ x.fillStyle='#152943';x.beginPath();x.ellipse(-15,-12,5,8,0,0,Math.PI*2);x.ellip
 x.fillStyle='rgba(238,125,145,.25)';x.beginPath();x.ellipse(-25,9,8,4,0,0,Math.PI*2);x.ellipse(25,9,8,4,0,0,Math.PI*2);x.fill();x.strokeStyle='#a95e70';x.lineWidth=1.5;x.beginPath();x.arc(0,10,7,.2,Math.PI-.2);x.stroke();
 // side locks
 x.fillStyle='#111827';x.beginPath();x.moveTo(-37,-40);x.quadraticCurveTo(-58,10,-42,75);x.quadraticCurveTo(-27,52,-30,7);x.fill();x.beginPath();x.moveTo(37,-40);x.quadraticCurveTo(58,10,42,75);x.quadraticCurveTo(27,52,30,7);x.fill();
-x.restore()}draw();addEventListener('resize',draw);window.ManaAvatar={setSpeaking(v){c.style.filter=v?'drop-shadow(0 0 7px #45c5ff)':'none'}};})();
+x.restore()}draw();addEventListener('resize',draw);window.ManaAvatar={setSpeaking(v){this.setPresenceState(v?'SPEAKING':'IDLE','')},setPresenceState(state,detail){const active=['LISTENING','THINKING','SPEAKING','ATTENTION'].includes(state);c.style.filter=active?'drop-shadow(0 0 9px #45c5ff)':'none';const label={IDLE:'',LISTENING:'Слушаю…',THINKING:'Думаю…',SPEAKING:'Говорю…',ATTENTION:'Внимание',PAUSED:'Пауза',ERROR:'Ошибка'}[state]||'';status.textContent=detail||label}};})();
 </script>
 <script type="module">
 const status=document.getElementById('status');
