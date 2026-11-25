@@ -56,7 +56,8 @@ class ManaGatewayChatService(
 
     fun send(message: String, callback: (answer: String?, error: String?, approvals: List<ManaApprovalRequest>) -> Unit): Boolean {
         if (message.isBlank()) return false
-        if (!isConfigured() && !hasLocalModel() && !modelDownloadInProgress.compareAndSet(false, true)) return false
+        val ownsModelDownload = !isConfigured() && !hasLocalModel()
+        if (ownsModelDownload && !modelDownloadInProgress.compareAndSet(false, true)) return false
         stop()
         val signal = ManaCancellationSignal()
         activeSignal = signal
@@ -109,7 +110,7 @@ class ManaGatewayChatService(
                 callback(null, messageText, emptyList())
             } finally {
                 if (activeSignal === signal) activeSignal = null
-                if (!hasLocalModel()) modelDownloadInProgress.set(false)
+                if (ownsModelDownload) modelDownloadInProgress.set(false)
             }
         }, "mana-gateway-chat").start()
         return true
