@@ -1,33 +1,41 @@
 # MANA Local AI — LiteRT-LM Android integration
 
-## Implemented in this branch
+## Current design
 
-- ManaLiteRtLmRuntime adapts Google's LiteRT-LM Kotlin API to the MANA provider contract.
-- The generated Android app pins com.google.ai.edge.litertlm:litertlm-android:0.16.1.
-- The generated app's Kotlin compiler is raised from 2.0.21 to 2.2.20 when that exact baseline is present. LiteRT-LM 0.16.1 carries Kotlin metadata 2.3; Kotlin 2.2+ is required.
-- Model import copies the selected file off the UI thread into app-private storage: filesDir/models/mana-local.litertlm.
-- The app never packages model weights in the APK.
-- Chat routing is GPT through MANA Gateway first, then local LiteRT-LM if GPT fails; if no gateway exists, local-only chat is available when a model is installed.
-- CPU is the conservative initial backend. GPU/NPU are not enabled until tested against the RMX5566 drivers and a matching model bundle.
-- The local engine is initialized in the chat worker, retained for subsequent messages, and closed with the MANA chat lifecycle.
+- MANA uses Google's LiteRT-LM Android runtime through `ManaLiteRtLmRuntime`.
+- The generated Android app pins `com.google.ai.edge.litertlm:litertlm-android:0.16.1`.
+- The generated app's Kotlin compiler is raised from 2.0.21 to 2.2.20 when that exact baseline is present.
+- The selected local model is Qwen3-0.6B INT4, LiteRT-LM format, Apache-2.0.
+- On first explicit setup or first offline chat, MANA automatically downloads the pinned model revision from Hugging Face into app-private `filesDir/models/mana-local.litertlm`. No file picker, manual transfer, or separate model installer is required.
+- The downloaded file is accepted only after a minimum-size check and SHA-256 verification. An incomplete or modified download is rejected.
+- The model is not copied into the APK's assets. The Android on-device AI guidance recommends keeping large model files outside the APK and downloading them into app-private storage; this avoids an enormous APK and lets Android install the app normally.
+- The model download is about 347 MB and requires internet access once. After it is installed, local inference runs offline.
+- GPT through MANA Gateway remains the preferred provider when configured; the local model is the on-device fallback. If no gateway is configured, MANA provisions and uses the local model.
+- CPU is the conservative initial backend. GPU/NPU are not enabled until tested against RMX5566 drivers and a matching model bundle.
+- The local engine is initialized on the chat worker, retained for subsequent messages, and closed with the MANA chat lifecycle.
 
-## Installing a model
+## Pinned local model
 
-1. Obtain a compatible .litertlm bundle and review its model license and usage conditions.
-2. Transfer the file to the phone.
-3. In MANA Home select «Установить локальный ИИ-движок» and choose the file.
-4. Restart MANA. The first load can take several seconds and uses significant memory.
-5. Test in airplane mode. A successful response confirms the local path; merely importing the file does not.
+- Repository: https://huggingface.co/litert-community/Qwen3-0.6B-int4
+- File: `qwen3_0.6b_q4_block32_ekv1280.litertlm`
+- Revision: `6aa2daf`
+- Approximate published size: 347 MB
+- SHA-256: `312ce4e6bc0816edf844b9b7e66542648a89440b54822c3581e48a19e9ff5715`
+- License: Apache-2.0 (model card states it is inherited from Qwen/Qwen3-0.6B).
 
-A candidate for initial evaluation is the public LiteRT Community Gemma 3 1B repository:
-https://huggingface.co/litert-community/Gemma3-1B-IT
+The 0.6B INT4 model is a compact baseline, not a claim of perfect or frontier-level intelligence. It is intended for offline chat, summaries and simple question answering. More demanding reasoning stays with the configured cloud provider when available.
 
-It includes a 584 MB INT4 gemma3-1b-it-int4.litertlm file, but access is gated by acceptance of the Gemma terms. This is a candidate, not a verified RMX5566 model. Use the general CPU-compatible LiteRT-LM bundle, not the Tensor-NPU-specific bundles compiled for Google Tensor chips. Qualcomm SM6225 is not Google Tensor.
+## Installation and first launch
 
-## Important limitations / next validation
+1. Install the MANA Android application.
+2. Open MANA and tap «Подготовить встроенный локальный ИИ · 347 МБ», or send the first message while no cloud gateway is configured.
+3. Keep internet access available while the model is downloaded and verified.
+4. After successful verification, MANA can answer locally without internet. The model stays in app-private storage.
 
-- GitHub Actions must compile the generated app with the pinned Kotlin and LiteRT-LM versions. API/compiler incompatibilities must be fixed from the official LiteRT-LM Android guide before treating the integration as build-ready.
-- The model file is not included in the APK and is not automatically downloaded. Its license, SHA-256, memory use, latency, thermal behavior, and Russian-language quality need a device test.
-- Model import currently verifies only that the selected file is nontrivial in size. It does not yet validate model metadata or compute/display SHA-256.
-- Cancellation is checked between streamed chunks; a hard native inference cancellation hook still needs a verified API-specific implementation.
-- This Android application is an app-level MANA environment, not a privileged system service or a replacement for the Linux kernel.
+## Validation still required
+
+- GitHub Actions must compile and test the generated Android project with the pinned Kotlin and LiteRT-LM versions.
+- The RMX5566 must be tested physically for model initialization, Russian-language response quality, memory pressure, latency, heat and battery use.
+- The current local adapter uses the CPU backend; device-specific GPU/NPU acceleration is not enabled.
+- Cancellation is checked between streamed chunks; a native inference cancellation hook needs a verified API-specific implementation.
+- This Android app is MANA's primary Android home/assistant app, not yet a privileged Android system component and not a replacement for the Linux kernel. The AOSP/system-image stage comes after the app is stable.
