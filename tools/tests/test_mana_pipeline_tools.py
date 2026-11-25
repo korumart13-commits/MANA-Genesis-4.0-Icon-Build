@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -9,12 +11,121 @@ TOOLS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(TOOLS))
 import mana_ai_code_author as author
 
+PATCH_GATE = TOOLS / "mana_patch_gate.py"
+
+
 class ManaToolTests(unittest.TestCase):
     def test_android_sources_do_not_use_nullable_ifblank_default(self):
         integration = Path(__file__).resolve().parents[2] / "integration"
         for source in integration.glob("*.kt"):
             text = source.read_text(encoding="utf-8")
             self.assertNotIn("ifBlank { null }", text, str(source))
+
+    def run_patch_gate(self, project: Path, patch_text: str, *extra: str):
+        patch = project.parent / "proposal.patch"
+        patch.write_text(patch_text, encoding="utf-8")
+        return subprocess.run(
+            [
+                sys.executable,
+                str(PATCH_GATE),
+                "--project-dir", str(project),
+                "--patch", str(patch),
+                "--scope", "minor_patch",
+                *extra,
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+    def test_patch_gate_applies_allowlisted_kotlin_change(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp) / "project"
+            target = project / "app/src/main/java/com/mana/os/Fix.kt"
+            target.parent.mkdir(parents=True)
+            target.write_text("val answer = 1\n", encoding="utf-8")
+            diff = """diff --git a/app/src/main/java/com/mana/os/Fix.kt b/app/src/main/java/com/mana/os/Fix.kt
+--- a/app/src/main/java/com/mana/os/Fix.kt
++++ b/app/src/main/java/com/mana/os/Fix.kt
+@@ -1 +1 @@
+-val answer = 1
++val answer = 2
+"""
+            result = self.run_patch_gate(project, diff)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(target.read_text(encoding="utf-8"), "val answer = 2\n")
+
+    def test_patch_gate_rejects_manifest_change(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp) / "project"
+            project.mkdir()
+            diff = """diff --git a/app/src/main/AndroidManifest.xml b/app/src/main/AndroidManifest.xml
+--- a/app/src/main/AndroidManifest.xml
++++ b/app/src/main/AndroidManifest.xml
+@@ -1 +1 @@
+-old
++new
+"""
+            result = self.run_patch_gate(project, diff)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Protected path", result.stderr)
+
+    def test_patch_gate_rejects_path_traversal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp) / "project"
+            project.mkdir()
+            diff = """diff --git a/app/src/main/java/com/mana/os/../../../../outside.kt b/app/src/main/java/com/mana/os/../../../../outside.kt
+--- a/app/src/main/java/com/mana/os/../../../../outside.kt
++++ b/app/src/main/java/com/mana/os/../../../../outside.kt
+@@ -1 +1 @@
+-old
++new
+"""
+            result = self.run_patch_gate(project, diff)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Unsafe patch path", result.stderr)
+
+    def test_patch_gate_checks_both_old_and_new_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp) / "project"
+            project.mkdir()
+            diff = """diff --git a/app/src/main/AndroidManifest.xml b/app/src/main/java/com/mana/os/Allowed.kt
+--- a/app/src/main/AndroidManifest.xml
++++ b/app/src/main/java/com/mana/os/Allowed.kt
+@@ -1 +1 @@
+-old
++new
+"""
+            result = self.run_patch_gate(project, diff)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Protected path", result.stderr)
+
+    def test_full_update_requires_exact_owner_approval(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp) / "project"
+            target = project / "app/src/main/java/com/mana/os/Fix.kt"
+            target.parent.mkdir(parents=True)
+            target.write_text("val answer = 1\n", encoding="utf-8")
+            diff = """diff --git a/app/src/main/java/com/mana/os/Fix.kt b/app/src/main/java/com/mana/os/Fix.kt
+--- a/app/src/main/java/com/mana/os/Fix.kt
++++ b/app/src/main/java/com/mana/os/Fix.kt
+@@ -1 +1 @@
+-val answer = 1
++val answer = 2
+"""
+            patch = project.parent / "proposal.patch"
+            patch.write_text(diff, encoding="utf-8")
+            command = [
+                sys.executable, str(PATCH_GATE),
+                "--project-dir", str(project),
+                "--patch", str(patch),
+                "--scope", "full_update",
+            ]
+            rejected = subprocess.run(command, text=True, capture_output=True, check=False)
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn("requires owner_approval", rejected.stderr)
+            self.assertEqual(target.read_text(encoding="utf-8"), "val answer = 1\n")
+
 
     def test_ai_author_accepts_only_allowlisted_source_diff(self):
         diff = """diff --git a/app/src/main/java/com/mana/os/Fix.kt b/app/src/main/java/com/mana/os/Fix.kt
@@ -52,6 +163,7 @@ index 1111111..2222222 100644
     def test_no_api_key_emits_prompt_without_patch(self):
         import mana_ai_code_author
         from unittest.mock import patch
+
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source = root / "source"
@@ -63,13 +175,17 @@ index 1111111..2222222 100644
             with patch.dict("os.environ", {"MANA_AI_API_KEY": "", "MANA_AI_MODEL": ""}):
                 old_argv = sys.argv
                 try:
-                    sys.argv = ["mana_ai_code_author.py", "--report", str(report), "--source", str(source), "--out", str(out)]
+                    sys.argv = [
+                        "mana_ai_code_author.py", "--report", str(report),
+                        "--source", str(source), "--out", str(out),
+                    ]
                     mana_ai_code_author.main()
                 finally:
                     sys.argv = old_argv
             self.assertTrue((out / "MANA_AI_PATCH_REQUEST.md").is_file())
             self.assertTrue((out / "MANA_AI_AUTHOR_REPORT.md").is_file())
             self.assertFalse((out / "MANA_AI_PROPOSED.patch").exists())
+
 
 if __name__ == "__main__":
     unittest.main()
