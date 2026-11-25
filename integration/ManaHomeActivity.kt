@@ -109,6 +109,10 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
         content.addView(appButton, marginTop(6))
         val selfButton = actionButton("Саморазвитие MANA") { showSelfDevelopment() }
         content.addView(selfButton, marginTop(8))
+        val diaryButton = actionButton("Дневник MANA") {
+            startActivity(Intent(this, ManaDiaryActivity::class.java))
+        }
+        content.addView(diaryButton, marginTop(8))
         val settingsButton = actionButton("Настройки и разрешения Android") {
             startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                 android.net.Uri.parse("package:$packageName")))
