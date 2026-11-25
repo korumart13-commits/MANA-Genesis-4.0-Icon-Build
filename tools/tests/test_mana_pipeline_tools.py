@@ -73,7 +73,21 @@ class ManaToolTests(unittest.TestCase):
         self.assertIn("interface ManaRuntimeControl", source)
         self.assertIn("interface ManaCancellableCognitiveTools : ManaCognitiveTools", source)
         self.assertIn("tools.execute(action, control)", source)
+        self.assertIn("model.decide(context, control)", source)
         self.assertIn("if (control.isStopRequested())", source[source.index("tools.execute(action, control)"):])
+        self.assertIn("if (!control.isStopRequested())", source[source.index("// Save user input"):])
+
+    def test_cancellation_signal_broadcasts_stop_to_registered_adapters(self):
+        integration = Path(__file__).resolve().parents[2] / "integration"
+        source = (integration / "ManaCognitiveRuntime.kt").read_text(encoding="utf-8")
+        self.assertIn("class ManaCancellationSignal : ManaRuntimeControl", source)
+        self.assertIn("private val stopped = AtomicBoolean(false)", source)
+        self.assertIn("private val listeners = CopyOnWriteArrayList<() -> Unit>()", source)
+        self.assertIn("fun requestStop(): Boolean", source)
+        self.assertIn("override fun onStop(listener: () -> Unit): AutoCloseable", source)
+        self.assertIn("listeners.forEach { listener -> runCatching(listener) }", source)
+        self.assertIn("interface ManaCancellableReasoningModel : ManaReasoningModel", source)
+        self.assertIn("interface ManaCancellableCognitiveTools : ManaCognitiveTools", source)
 
     def test_cognitive_runtime_receives_bounded_dialogue_as_untrusted_context(self):
         integration = Path(__file__).resolve().parents[2] / "integration"
