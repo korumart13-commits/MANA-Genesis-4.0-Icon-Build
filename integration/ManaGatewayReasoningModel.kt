@@ -199,7 +199,7 @@ class ManaGatewayReasoningModel(
     override fun decide(context: ManaCognitiveContext, control: ManaRuntimeControl): ManaCognitiveDecision {
         check(!control.isStopRequested()) { "Request cancelled." }
         val token = credentials.currentBearerToken()?.trim()
-        require(!token.isNullOrBlank() && token.length <= 4_096) {
+        require(token != null && token.matches(Regex("[A-Za-z0-9._~+/=-]{16,4096}"))) {
             "MANA device authorization is not configured or has been revoked."
         }
         val response = transport.post(config, token, codec.encode(context), control)
