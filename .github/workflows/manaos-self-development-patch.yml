@@ -134,6 +134,18 @@ jobs:
           set -euo pipefail
           ./gradlew --no-daemon --stacktrace test assembleDebug
 
+      - name: Evaluate MANA test and static-analysis evidence
+        if: success()
+        shell: bash
+        env:
+          PROJECT_DIR: ${{ steps.project.outputs.dir }}
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/tools/mana_build_quality_gate.py" \
+            --tests "$PROJECT_DIR" \
+            --analysis "$GITHUB_WORKSPACE/output/code-intelligence/MANA_CODE_INTELLIGENCE.json" \
+            --out "$GITHUB_WORKSPACE/output/quality-gate"
+
       - name: Collect isolated build result and report
         if: always()
         shell: bash
