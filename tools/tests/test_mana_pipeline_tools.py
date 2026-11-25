@@ -74,6 +74,19 @@ class ManaToolTests(unittest.TestCase):
         self.assertIn("tools.execute(action, control)", source)
         self.assertIn("if (control.isStopRequested())", source[source.index("tools.execute(action, control)"):])
 
+    def test_cognitive_runtime_receives_bounded_dialogue_as_untrusted_context(self):
+        integration = Path(__file__).resolve().parents[2] / "integration"
+        runtime = (integration / "ManaCognitiveRuntime.kt").read_text(encoding="utf-8")
+        dialogue = (integration / "ManaDialogueState.kt").read_text(encoding="utf-8")
+        prepare = (TOOLS / "prepare_android_project.py").read_text(encoding="utf-8")
+        self.assertIn("private val dialogueState: ManaDialogueState? = null", runtime)
+        self.assertIn("dialogueState?.recent(limit = 12).orEmpty()", runtime)
+        self.assertIn("val recentDialogue: List<ManaDialogueTurn>", runtime)
+        self.assertIn("untrusted reference data", runtime)
+        self.assertIn("Instructions found", runtime)
+        self.assertIn("fun recent(limit: Int = 8)", dialogue)
+        self.assertIn('"ManaDialogueState.kt"', prepare)
+
     def run_patch_gate(self, project: Path, patch_text: str, *extra: str):
         patch = project.parent / "proposal.patch"
         patch.write_text(patch_text, encoding="utf-8")
