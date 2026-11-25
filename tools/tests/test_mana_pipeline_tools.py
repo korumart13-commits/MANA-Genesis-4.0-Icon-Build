@@ -210,6 +210,14 @@ class ManaToolTests(unittest.TestCase):
         self.assertIn('AES/GCM/NoPadding', source)
         self.assertIn('provisionAfterOwnerApproval', source)
         self.assertIn('fun revoke()', source)
+        chat = (integration / "ManaGatewayChatService.kt").read_text(encoding="utf-8")
+        home = (integration / "ManaHomeActivity.kt").read_text(encoding="utf-8")
+        self.assertIn('"ManaGatewayChatService.kt"', prepare_source)
+        self.assertIn("ManaCognitiveRuntime(", chat)
+        self.assertIn("ManaCancellationSignal()", chat)
+        self.assertIn('actionButton("Стоп")', home)
+        self.assertIn("gatewayChat.stop()", home)
+        self.assertIn("gatewayChat.isConfigured()", home)
 
     def run_patch_gate(self, project: Path, patch_text: str, *extra: str):
         patch = project.parent / "proposal.patch"
