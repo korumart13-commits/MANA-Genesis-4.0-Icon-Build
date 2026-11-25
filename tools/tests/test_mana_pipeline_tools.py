@@ -42,7 +42,12 @@ class ManaToolTests(unittest.TestCase):
         self.assertIn("take(1500)", source)
         self.assertIn("looksSensitive(entry.text)", source)
         self.assertIn("fun clear()", source)
+        self.assertIn("fun recentEntries(limit: Int = 20)", source)
         self.assertNotIn("https://", source)
+        home = (integration / "ManaHomeActivity.kt").read_text(encoding="utf-8")
+        self.assertIn('actionButton("Память Маны") { showMemory() }', home)
+        self.assertIn("memory.clear()", home)
+        self.assertIn("Очистить локальную память?", home)
 
     def test_dialogue_state_is_bounded_and_packaged(self):
         integration = Path(__file__).resolve().parents[2] / "integration"
