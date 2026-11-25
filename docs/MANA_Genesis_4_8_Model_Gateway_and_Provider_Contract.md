@@ -75,3 +75,18 @@ The adapter is wired into the home-screen chat path behind generated build confi
 ## Owner authority
 
 The owner can stop a request, clear local memory, revoke paired devices, and decline any proposed action. No self-update, release, privilege escalation, or firmware change may bypass owner approval.
+
+
+## Read-only tool execution boundary (Genesis 4.0 next stage)
+
+The Android project now includes `ManaReadOnlyToolRegistry`, a fail-closed execution boundary for future local read-only adapters.
+
+- Only a fixed allowlist of read-only tool identifiers can be registered.
+- The model cannot register handlers, add tool names, or widen argument schemas.
+- Each registered tool declares its accepted and required string arguments.
+- Unknown tools, unknown arguments, missing required arguments, control characters, oversized values, duplicate registrations, and stopped requests are rejected before a handler runs.
+- Handler exceptions become a generic safe failure; exception details are not returned to the model.
+- Side-effecting operations are intentionally excluded. They remain blocked by the cognitive policy until a separate owner-confirmation UI and auditable approval token flow are implemented.
+- The registry itself does not grant Android permissions and is not yet populated with Android system handlers.
+
+The associated unit tests cover allowlisting, schema enforcement, cancellation, and rejection of side-effecting tool registration. This is an execution-boundary foundation, not a claim that MANA can already control phone settings or applications.
