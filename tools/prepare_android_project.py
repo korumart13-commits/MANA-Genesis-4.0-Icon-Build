@@ -49,7 +49,7 @@ def configure_litert_lm(project: Path) -> None:
     app_source = app_gradle.read_text(encoding="utf-8")
     dependency = 'implementation("com.google.ai.edge.litertlm:litertlm-android:0.16.1")'
     if dependency not in app_source:
-        app_source += "\\n\\ndependencies {\\n    " + dependency + "\\n}\\n"
+        app_source += "\n\ndependencies {\n    " + dependency + "\n}\n"
         app_gradle.write_text(app_source, encoding="utf-8")
 
 
