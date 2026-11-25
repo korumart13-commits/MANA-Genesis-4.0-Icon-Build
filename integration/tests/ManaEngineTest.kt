@@ -29,15 +29,17 @@ class ManaEngineTest {
     }
 
     @Test
-    fun fallsBackToLocalWhenGptFails() {
+    fun localProviderWorksWithoutCallingCloud() {
         var localCalls = 0
-        val gpt = provider("gpt") { error("gateway offline") }
+        var gptCalls = 0
+        val gpt = provider("gpt") { gptCalls++; ManaCognitiveDecision(finalAnswer = "CLOUD") }
         val local = provider("local") { localCalls++; ManaCognitiveDecision(finalAnswer = "LOCAL") }
 
         val result = ManaEngine(gpt, local).decide(context(), ManaRuntimeControl.NEVER_STOP)
 
         assertEquals("LOCAL", result.finalAnswer)
         assertEquals(1, localCalls)
+        assertEquals(0, gptCalls)
     }
 
 
