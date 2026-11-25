@@ -56,7 +56,7 @@ class ManaDevelopmentPipeline(context: Context) {
                     title = item.getString("title"),
                     stage = Stage.valueOf(item.getString("stage")),
                     risk = item.getString("risk"),
-                    patchReference = item.optString("patchReference").ifBlank { null },
+                    patchReference = item.optString("patchReference").takeIf { it.isNotBlank() },
                     report = item.optString("report"),
                     updatedAt = item.optLong("updatedAt")
                 )
