@@ -20,10 +20,10 @@ def ensure_internet_permission(project: Path) -> None:
     permission = '    <uses-permission android:name="android.permission.INTERNET" />'
     if 'android.permission.INTERNET' in source:
         return
-    match = re.search(r"<manifest\\b[^>]*>", source)
+    match = re.search(r"<manifest\b[^>]*>", source)
     if not match:
         raise SystemExit("Could not safely locate the Android manifest root element.")
-    source = source[:match.end()] + "\\n" + permission + source[match.end():]
+    source = source[:match.end()] + "\n" + permission + source[match.end():]
     manifest.write_text(source, encoding="utf-8")
 
 
