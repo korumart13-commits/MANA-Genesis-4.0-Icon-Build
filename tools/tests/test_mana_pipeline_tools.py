@@ -70,6 +70,9 @@ class ManaToolTests(unittest.TestCase):
         self.assertGreaterEqual(source.count("control.isStopRequested()"), 3)
         self.assertIn("Остановлено по команде владельца.", source)
         self.assertIn("interface ManaRuntimeControl", source)
+        self.assertIn("interface ManaCancellableCognitiveTools : ManaCognitiveTools", source)
+        self.assertIn("tools.execute(action, control)", source)
+        self.assertIn("if (control.isStopRequested())", source[source.index("tools.execute(action, control)"):])
 
     def run_patch_gate(self, project: Path, patch_text: str, *extra: str):
         patch = project.parent / "proposal.patch"
