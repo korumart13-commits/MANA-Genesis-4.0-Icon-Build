@@ -30,6 +30,7 @@ class ManaCognitiveRuntime(
         val observations = mutableListOf<String>()
         val toolEvents = mutableListOf<ManaToolEvent>()
         val approvalRequests = mutableListOf<ManaApprovalRequest>()
+        var actionAwaitingApproval = false
         val recalled = memory.recall(input, limit = 8)
         val activeRetriever = retriever
         val retrievedSources = if (control.isStopRequested() || activeRetriever == null) {
@@ -88,6 +89,7 @@ class ManaCognitiveRuntime(
                 if (verdict != ManaActionVerdict.ALLOW) {
                     val message = when (verdict) {
                         ManaActionVerdict.REQUIRES_OWNER_CONFIRMATION -> {
+                            actionAwaitingApproval = true
                             val request = approvalBroker?.requestApproval(
                                 action,
                                 decision.summary.takeIf { it.isNotBlank() } ?: "Мана предлагает выполнить действие: ${action.name}"
@@ -124,8 +126,12 @@ class ManaCognitiveRuntime(
                 observations += "Инструмент ${action.name}: ${result.summary.take(500)}"
             }
 
-            if (answer == null && approvalRequests.isNotEmpty()) {
-                answer = "Я отправила запрос на подтверждение владельцу. Пока исполнитель не подключён, ничего не изменено."
+            if (answer == null && actionAwaitingApproval) {
+                answer = if (approvalRequests.isNotEmpty()) {
+                    "Я отправила запрос на подтверждение владельцу. Пока исполнитель не подключён, ничего не изменено."
+                } else {
+                    "Это действие требует подтверждения владельца, но запрос разрешения сейчас недоступен. Ничего не изменено."
+                }
             } else if (answer == null && decision.stopAfterActions) {
                 answer = decision.finalAnswer?.takeIf { it.isNotBlank() }
                     ?: "Готово. Я выполнила доступные действия и проверила их результат."
