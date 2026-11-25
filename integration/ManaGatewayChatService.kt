@@ -4,8 +4,9 @@ import android.content.Context
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Connects the configured gateway model to the bounded MANA cognitive loop.
- * This service exposes read-only diagnostics, owner-approved app launch, and fixed Android settings-page navigation.
+ * Runs MANA's local cognitive loop and owner-approved Android compatibility actions.
+ * The historical class name is retained temporarily to avoid breaking existing UI wiring.
+ * No third-party model gateway is used by this service.
  */
 class ManaGatewayChatService(
     context: Context,
@@ -16,8 +17,6 @@ class ManaGatewayChatService(
     @Volatile private var activeSignal: ManaCancellationSignal? = null
     private val approvalBroker = ManaOwnerApprovalBroker()
     private val approvedActionExecutor = ManaAndroidApprovedActionExecutor(appContext, approvalBroker)
-
-    fun isConfigured(): Boolean = ManaGatewayDeploymentConfig.isConfigured()
 
     private val localModelFile by lazy {
         java.io.File(appContext.filesDir, "${ManaLiteRtLmRuntime.MODEL_DIRECTORY}/${ManaLiteRtLmRuntime.MODEL_FILE_NAME}")
