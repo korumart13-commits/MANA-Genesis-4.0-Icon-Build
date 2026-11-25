@@ -179,7 +179,7 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
             message.setText("")
             (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
                 .hideSoftInputFromWindow(message.windowToken, 0)
-            val started = gatewayChat.send(text) { answer, error ->
+            val started = gatewayChat.send(text) { answer, error, approvals ->
                 runOnUiThread {
                     val reply = answer ?: "Не удалось получить ответ: ${error ?: "неизвестная ошибка"}"
                     chatLog.text = "Ты: $text\n\nМана: $reply"
@@ -187,6 +187,7 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
                         speak(answer)
                         recordConversation(text, answer)
                     }
+                    if (approvals.isNotEmpty()) showOwnerApprovalDialogs(approvals)
                 }
             }
             if (!started) toast("Шлюз MANA не настроен. Работаю локально.")
@@ -311,6 +312,44 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
         textToSpeech?.shutdown()
         textToSpeech = null
         super.onDestroy()
+    }
+
+    /** Show each exact proposed action and its arguments before the owner decides. */
+    private fun showOwnerApprovalDialogs(requests: List<com.mana.os.integration.ManaApprovalRequest>) {
+        fun showAt(index: Int) {
+            if (index >= requests.size || isFinishing || isDestroyed) return
+            val request = requests[index]
+            val details = buildString {
+                append(request.summary)
+                append("\n\nДействие: ").append(request.actionName)
+                append("\n\nПараметры:")
+                request.arguments.forEach { (key, value) ->
+                    append("\n• ").append(key).append(": ").append(value)
+                }
+                val seconds = ((request.expiresAtMillis - System.currentTimeMillis()).coerceAtLeast(0L) / 1000L)
+                append("\n\nЗапрос действует ещё примерно ").append(seconds).append(" сек.")
+                append("\n\nВажно: исполнитель этой функции пока не подключён. Даже после одобрения действие НЕ будет выполнено.")
+            }
+            AlertDialog.Builder(this)
+                .setTitle("Запрос разрешения MANA")
+                .setMessage(details)
+                .setPositiveButton("Одобрить запрос") { _, _ ->
+                    val recorded = gatewayChat.confirmApproval(request.requestId)
+                    toast(if (recorded) "Одобрение записано. Действие не выполнено: исполнитель ещё не подключён." else "Запрос истёк или уже обработан.")
+                    showAt(index + 1)
+                }
+                .setNegativeButton("Отклонить") { _, _ ->
+                    gatewayChat.denyApproval(request.requestId)
+                    toast("Запрос отклонён. Ничего не изменено.")
+                    showAt(index + 1)
+                }
+                .setOnCancelListener {
+                    gatewayChat.denyApproval(request.requestId)
+                    showAt(index + 1)
+                }
+                .show()
+        }
+        showAt(0)
     }
 
     private fun showInstalledApps() {
