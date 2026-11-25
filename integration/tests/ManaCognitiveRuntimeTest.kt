@@ -174,4 +174,35 @@ class ManaCognitiveRuntimeTest {
         assertTrue(result.answer.contains("ничего не изменено"))
     }
 
+    @Test
+    fun actionRequiringApprovalNeverGetsExecutedWithoutBroker() {
+        var toolCalls = 0
+        val model = object : ManaReasoningModel {
+            override fun decide(context: ManaCognitiveContext) = ManaCognitiveDecision(
+                actions = listOf(ManaCognitiveAction("settings.change", mapOf("setting" to "wifi", "value" to "off"))),
+                stopAfterActions = true,
+                finalAnswer = "Готово, выключила Wi-Fi."
+            )
+        }
+        val memory = object : ManaCognitiveMemory {
+            override fun recall(query: String, limit: Int) = emptyList<ManaCognitiveMemoryEntry>()
+            override fun remember(entry: ManaCognitiveMemoryEntry) {}
+        }
+        val tools = object : ManaCognitiveTools {
+            override fun availableTools() = listOf("settings.change")
+            override fun execute(action: ManaCognitiveAction): ManaCognitiveToolResult {
+                toolCalls++
+                return ManaCognitiveToolResult(true, "unexpected")
+            }
+        }
+
+        val result = ManaCognitiveRuntime(
+            model, memory, tools, ManaDefaultCognitivePolicy()
+        ).respond("Выключи Wi-Fi", "approval-no-broker")
+
+        assertEquals(0, toolCalls)
+        assertTrue(result.answer.contains("требует подтверждения"))
+        assertTrue(result.answer.contains("Ничего не изменено"))
+    }
+
 }
