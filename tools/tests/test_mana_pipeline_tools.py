@@ -122,6 +122,7 @@ class ManaToolTests(unittest.TestCase):
         self.assertIn('"ManaCognitiveRuntimeTest.kt"', prepare)
         self.assertIn("app/src/test/java/com/mana/os/integration/ManaCognitiveRuntimeTest.kt", prepare)
         self.assertIn('testImplementation("junit:junit:4.13.2")', prepare)
+        self.assertLess(prepare.index('junit_dependency ='), prepare.index('if junit_dependency not in app_gradle_source'))
 
     def test_cognitive_runtime_receives_bounded_dialogue_as_untrusted_context(self):
         integration = Path(__file__).resolve().parents[2] / "integration"
