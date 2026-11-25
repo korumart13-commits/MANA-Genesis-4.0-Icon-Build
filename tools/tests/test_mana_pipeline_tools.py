@@ -35,6 +35,15 @@ class ManaToolTests(unittest.TestCase):
         source = prepare.read_text(encoding="utf-8")
         self.assertIn('"ManaCognitiveRuntime.kt"', source)
 
+    def test_local_memory_is_bounded_and_filters_secret_markers(self):
+        integration = Path(__file__).resolve().parents[2] / "integration"
+        source = (integration / "ManaLocalCognitiveMemory.kt").read_text(encoding="utf-8")
+        self.assertIn("MAX_ENTRIES = 300", source)
+        self.assertIn("take(1500)", source)
+        self.assertIn("looksSensitive(entry.text)", source)
+        self.assertIn("fun clear()", source)
+        self.assertNotIn("https://", source)
+
     def run_patch_gate(self, project: Path, patch_text: str, *extra: str):
         patch = project.parent / "proposal.patch"
         patch.write_text(patch_text, encoding="utf-8")
