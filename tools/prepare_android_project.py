@@ -117,7 +117,12 @@ def main() -> None:
         raise SystemExit(f"Required read-only tool registry test source is missing or empty: {registry_test_source}")
     shutil.copy2(registry_test_source, app_test_target.parent / "ManaReadOnlyToolRegistryTest.kt")
 
-    approval_test_source = integration / "tests" / "ManaOwnerApprovalBrokerTest.kt"\n    if not approval_test_source.is_file() or approval_test_source.stat().st_size == 0:\n        raise SystemExit(f"Required owner approval broker test source is missing or empty: {approval_test_source}")\n    shutil.copy2(approval_test_source, app_test_target.parent / "ManaOwnerApprovalBrokerTest.kt")\n\n    gateway_test_source = integration / "tests" / "ManaGatewayAdapterTest.kt"
+    approval_test_source = integration / "tests" / "ManaOwnerApprovalBrokerTest.kt"
+    if not approval_test_source.is_file() or approval_test_source.stat().st_size == 0:
+        raise SystemExit(f"Required owner approval broker test source is missing or empty: {approval_test_source}")
+    shutil.copy2(approval_test_source, app_test_target.parent / "ManaOwnerApprovalBrokerTest.kt")
+
+    gateway_test_source = integration / "tests" / "ManaGatewayAdapterTest.kt"
     if not gateway_test_source.is_file() or gateway_test_source.stat().st_size == 0:
         raise SystemExit(f"Required gateway adapter test source is missing or empty: {gateway_test_source}")
     shutil.copy2(gateway_test_source, app_test_target.parent / "ManaGatewayAdapterTest.kt")
