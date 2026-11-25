@@ -163,7 +163,7 @@ def main() -> None:
     write_voice_deployment_config(project, os.environ.get("MANA_TTS_ENDPOINT", ""), os.environ.get("MANA_TTS_HOST", ""))
     ensure_internet_permission(project)
     configure_litert_lm(project)
-    for name in ("ManaGenesis.kt", "ManaEngine.kt", "ManaGrowthEngine.kt", "ManaLiteRtLmRuntime.kt", "ManaSystemKernel.kt", "ManaCoreKernel.kt", "AndroidSelfDevelopment.kt", "ManaDevelopmentPipeline.kt", "ManaCognitiveRuntime.kt", "ManaLocalCognitiveMemory.kt", "ManaDialogueState.kt", "ManaDefaultCognitivePolicy.kt", "ManaGatewayReasoningModel.kt", "ManaAndroidGatewayCredentialStore.kt", "ManaGatewayChatService.kt", "ManaVoiceGatewayClient.kt", "ManaReadOnlyToolRegistry.kt", "ManaAndroidReadOnlyTools.kt", "ManaOwnerApprovalBroker.kt", "ManaApprovedActionValidation.kt", "ManaAndroidApprovedActionExecutor.kt"):
+    for name in ("ManaIdentity.kt", "ManaDreamConsolidation.kt", "ManaGenesis.kt", "ManaEngine.kt", "ManaGrowthEngine.kt", "ManaLiteRtLmRuntime.kt", "ManaSystemKernel.kt", "ManaCoreKernel.kt", "AndroidSelfDevelopment.kt", "ManaDevelopmentPipeline.kt", "ManaCognitiveRuntime.kt", "ManaLocalCognitiveMemory.kt", "ManaDialogueState.kt", "ManaDefaultCognitivePolicy.kt", "ManaGatewayReasoningModel.kt", "ManaAndroidGatewayCredentialStore.kt", "ManaGatewayChatService.kt", "ManaVoiceGatewayClient.kt", "ManaReadOnlyToolRegistry.kt", "ManaAndroidReadOnlyTools.kt", "ManaOwnerApprovalBroker.kt", "ManaApprovedActionValidation.kt", "ManaAndroidApprovedActionExecutor.kt"):
         source = integration / name
         if not source.is_file() or source.stat().st_size == 0:
             raise SystemExit(f"Required integration source is missing or empty: {source}")
@@ -249,6 +249,16 @@ def main() -> None:
     if not policy_test_source.is_file() or policy_test_source.stat().st_size == 0:
         raise SystemExit(f"Required default policy test source is missing or empty: {policy_test_source}")
     shutil.copy2(policy_test_source, app_test_target.parent / "ManaDefaultCognitivePolicyTest.kt")
+
+    dream_test_source = integration / "tests" / "ManaDreamConsolidationTest.kt"
+    if not dream_test_source.is_file() or dream_test_source.stat().st_size == 0:
+        raise SystemExit(f"Required dream consolidation test source is missing or empty: {dream_test_source}")
+    shutil.copy2(dream_test_source, app_test_target.parent / "ManaDreamConsolidationTest.kt")
+
+    identity_test_source = integration / "tests" / "ManaIdentityStateTest.kt"
+    if not identity_test_source.is_file() or identity_test_source.stat().st_size == 0:
+        raise SystemExit(f"Required identity state test source is missing or empty: {identity_test_source}")
+    shutil.copy2(identity_test_source, app_test_target.parent / "ManaIdentityStateTest.kt")
 
     registry_test_source = integration / "tests" / "ManaReadOnlyToolRegistryTest.kt"
     if not registry_test_source.is_file() or registry_test_source.stat().st_size == 0:
