@@ -33,6 +33,10 @@ class ManaOwnerApprovalBroker(
             record(action.name.take(80), "rejected", "invalid_request")
             return null
         }
+        val actionFingerprint = fingerprint(action)
+        pending.values.firstOrNull { it.fingerprint == actionFingerprint }?.let {
+            return it.request
+        }
         if (pending.size >= MAX_PENDING) {
             record(action.name, "rejected", "pending_limit")
             return null
@@ -46,7 +50,7 @@ class ManaOwnerApprovalBroker(
             arguments = action.arguments.toSortedMap(),
             expiresAtMillis = createdAt + approvalTtlMillis
         )
-        pending[id] = PendingApproval(request, fingerprint(action))
+        pending[id] = PendingApproval(request, actionFingerprint)
         record(action.name, "requested", "awaiting_owner")
         return request
     }
