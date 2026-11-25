@@ -34,6 +34,13 @@ jobs:
       - name: Checkout proposal and patch gate
         uses: actions/checkout@v4
 
+      - name: Run MANA tooling regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile tools/mana_code_intelligence.py tools/mana_ai_code_author.py tools/mana_patch_gate.py tools/mana_build_quality_gate.py
+          python3 -m unittest discover -s tools/tests -v
+
       - name: Validate proposal ID and patch presence
         id: proposal
         shell: bash
