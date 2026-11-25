@@ -35,7 +35,7 @@ def main() -> None:
 
     target_dir = project / "app/src/main/java/com/mana/os/integration"
     target_dir.mkdir(parents=True, exist_ok=True)
-    for name in ("ManaGenesis.kt", "AndroidSelfDevelopment.kt", "ManaDevelopmentPipeline.kt", "ManaCognitiveRuntime.kt", "ManaLocalCognitiveMemory.kt", "ManaDialogueState.kt", "ManaDefaultCognitivePolicy.kt"):
+    for name in ("ManaGenesis.kt", "AndroidSelfDevelopment.kt", "ManaDevelopmentPipeline.kt", "ManaCognitiveRuntime.kt", "ManaLocalCognitiveMemory.kt", "ManaDialogueState.kt", "ManaDefaultCognitivePolicy.kt", "ManaGatewayReasoningModel.kt"):
         source = integration / name
         if not source.is_file() or source.stat().st_size == 0:
             raise SystemExit(f"Required integration source is missing or empty: {source}")
@@ -74,6 +74,11 @@ def main() -> None:
     if not policy_test_source.is_file() or policy_test_source.stat().st_size == 0:
         raise SystemExit(f"Required default policy test source is missing or empty: {policy_test_source}")
     shutil.copy2(policy_test_source, app_test_target.parent / "ManaDefaultCognitivePolicyTest.kt")
+
+    gateway_test_source = integration / "tests" / "ManaGatewayAdapterTest.kt"
+    if not gateway_test_source.is_file() or gateway_test_source.stat().st_size == 0:
+        raise SystemExit(f"Required gateway adapter test source is missing or empty: {gateway_test_source}")
+    shutil.copy2(gateway_test_source, app_test_target.parent / "ManaGatewayAdapterTest.kt")
 
     junit_dependency = 'testImplementation("junit:junit:4.13.2")'
     app_gradle = project / "app/build.gradle.kts"
