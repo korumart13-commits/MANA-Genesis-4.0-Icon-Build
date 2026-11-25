@@ -116,3 +116,16 @@ The Android source tree now includes `ManaOwnerApprovalBroker`, a platform-neutr
 - Pending requests and tokens are memory-only and are lost when the process ends. This deliberately avoids persisting reusable approvals.
 
 The chat now surfaces pending approval requests in an owner-facing Android confirmation dialog. A dedicated MANA Permission Center also shows pending requests, the latest bounded in-memory audit events, and a shortcut to Android's app-permission settings. The dialog shows the action name, exact arguments, summary, and remaining time, with explicit approve/decline controls. Dismissing the dialog is treated as decline. Approval is recorded, but because no side-effecting execution adapter is connected, the one-time token is immediately discarded and the app explicitly tells the owner that nothing was changed. This UI is a confirmation preview, not an Android OS permission prompt. Side-effecting actions remain unavailable until a concrete adapter is implemented, independently checks platform permissions/roles, consumes an exact-action token immediately before execution, and has dedicated tests.
+
+
+## First owner-approved Android action: launch an installed app
+
+The first side-effecting adapter is deliberately narrow.
+
+- The model can request `apps.find_launchable` with a user-provided name fragment. Android filters launcher-visible apps locally and returns at most five matching labels and package IDs; the full installed-app inventory is never sent.
+- Android package visibility is limited to launcher activities through a manifest `<queries>` intent filter. The app does not request `QUERY_ALL_PACKAGES`.
+- `apps.launch` requires owner confirmation. The dialog shows the actual app label resolved by Android and the exact package ID, not a model-supplied display name.
+- The executor accepts exactly one argument, `package_name`, rejects arbitrary intents, malformed package IDs, MANA's own package, non-launchable packages, and every other action type.
+- On the explicit owner button, the broker issues a short-lived token; the executor consumes it for the exact action immediately before calling Android's package launch intent. The launch intent is obtained from PackageManager, never supplied by the model.
+- Android still decides whether the app can be launched. No runtime permission, default role, root access, or system privilege is granted by this feature.
+- All other side-effecting actions remain unavailable and are declined by the UI until separately implemented and reviewed.
