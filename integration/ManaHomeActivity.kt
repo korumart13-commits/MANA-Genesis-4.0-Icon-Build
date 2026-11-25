@@ -290,7 +290,10 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
         }
         com.mana.os.integration.ManaIdentityState.setState(com.mana.os.integration.ManaPresenceState.LISTENING, "Слушаю голосовую команду")
         try { startActivityForResult(intent, 703) }
-        catch (_: Exception) { toast("На устройстве нет доступного распознавания речи.") }
+        catch (_: Exception) {
+            com.mana.os.integration.ManaIdentityState.setState(com.mana.os.integration.ManaPresenceState.IDLE)
+            toast("На устройстве нет доступного распознавания речи.")
+        }
     }
 
     @Deprecated("Android activity result compatibility")
