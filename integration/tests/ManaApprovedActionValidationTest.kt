@@ -66,6 +66,27 @@ class ManaApprovedActionValidationTest {
     }
 
     @Test
+    fun acceptsOnlyExactRingOrMediaVolumePercentages() {
+        assertEquals("Звонок: 65%", ManaApprovedActionValidation.audioVolume(
+            ManaCognitiveAction("device.set_audio_volume", mapOf("stream" to "ring", "percent" to "65"))
+        )?.label)
+        assertEquals("Мультимедиа: 0%", ManaApprovedActionValidation.audioVolume(
+            ManaCognitiveAction("device.set_audio_volume", mapOf("stream" to "media", "percent" to "0"))
+        )?.label)
+        listOf("-1", "101", "01", "50.5", "loud", "").forEach { value ->
+            assertNull(ManaApprovedActionValidation.audioVolume(
+                ManaCognitiveAction("device.set_audio_volume", mapOf("stream" to "ring", "percent" to value))
+            ))
+        }
+        assertNull(ManaApprovedActionValidation.audioVolume(
+            ManaCognitiveAction("device.set_audio_volume", mapOf("stream" to "alarm", "percent" to "50"))
+        ))
+        assertNull(ManaApprovedActionValidation.audioVolume(
+            ManaCognitiveAction("device.set_audio_volume", mapOf("stream" to "ring", "percent" to "50", "extra" to "x"))
+        ))
+    }
+
+    @Test
     fun rejectsArbitrarySettingsActionsAndArguments() {
         assertNull(ManaApprovedActionValidation.settingsPage(
             ManaCognitiveAction("settings.change", mapOf("page" to "wifi"))
