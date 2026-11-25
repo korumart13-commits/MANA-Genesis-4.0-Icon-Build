@@ -10,7 +10,7 @@ import android.os.StatFs
 import java.util.Locale
 
 /**
- * Android read-only diagnostics. Exposes coarse battery/storage facts only.
+ * Android read-only diagnostics plus a narrowly scoped local app-name search.
  * Full installed-app inventory is never sent. A narrowly scoped search returns at most five
  * matches for an explicit owner request, so MANA can identify a requested launch target.
  */
