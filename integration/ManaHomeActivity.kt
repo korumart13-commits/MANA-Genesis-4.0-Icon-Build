@@ -121,6 +121,10 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
             startActivity(Intent(this, ManaDiaryActivity::class.java))
         }
         content.addView(diaryButton, marginTop(8))
+        val lifeManagerButton = actionButton("Задачи и планы MANA") {
+            startActivity(Intent(this, ManaLifeManagerActivity::class.java))
+        }
+        content.addView(lifeManagerButton, marginTop(8))
         val memoryButton = actionButton("Память Маны") { showMemory() }
         content.addView(memoryButton, marginTop(8))
         val settingsButton = actionButton("Настройки и разрешения Android") {
