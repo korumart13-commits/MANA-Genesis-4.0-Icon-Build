@@ -119,6 +119,7 @@ class ManaToolTests(unittest.TestCase):
         self.assertIn("listenerRegisteredAfterStopRunsImmediately", kotlin)
         self.assertIn("dialogueStateRetainsOnlyLatestBoundedTurns", kotlin)
         self.assertIn("stoppedRuntimeDoesNotCallModelToolsOrMemory", kotlin)
+        self.assertIn("stopDuringModelCallPreventsToolExecutionAndMemoryWrite", kotlin)
         self.assertIn('"ManaCognitiveRuntimeTest.kt"', prepare)
         self.assertIn("app/src/test/java/com/mana/os/integration/ManaCognitiveRuntimeTest.kt", prepare)
         self.assertIn('testImplementation("junit:junit:4.13.2")', prepare)
