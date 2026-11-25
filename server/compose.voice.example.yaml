@@ -1,0 +1,27 @@
+services:
+  mana-voice:
+    build:
+      context: .
+      dockerfile: Voice.Dockerfile
+    restart: unless-stopped
+    environment:
+      MANA_DEVICE_BEARER_TOKEN: ${MANA_DEVICE_BEARER_TOKEN:?set a long random device token}
+    ports:
+      - "127.0.0.1:8081:8081"
+    volumes:
+      - mana-model-cache:/models/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    tmpfs:
+      - /tmp:size=128m,noexec,nosuid
+volumes:
+  mana-model-cache:
