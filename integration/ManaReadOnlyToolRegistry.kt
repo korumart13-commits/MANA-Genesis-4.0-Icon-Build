@@ -67,6 +67,7 @@ class ManaReadOnlyToolRegistry(
             "device.read_battery",
             "device.read_storage",
             "device.read_notification_status",
+            "device.read_audio_status",
             "diary.read",
             "memory.search",
             "updates.check"
