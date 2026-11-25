@@ -14,6 +14,7 @@ class ManaGatewayChatService(
     private val appContext = context.applicationContext
     @Volatile private var activeSignal: ManaCancellationSignal? = null
     private val approvalBroker = ManaOwnerApprovalBroker()
+    private val approvedActionExecutor = ManaAndroidApprovedActionExecutor(appContext, approvalBroker)
 
     fun isConfigured(): Boolean = ManaGatewayDeploymentConfig.isConfigured()
 
@@ -59,12 +60,13 @@ class ManaGatewayChatService(
         return true
     }
 
-    fun confirmApproval(requestId: String): Boolean {
-        val token = approvalBroker.confirmFromOwnerUi(requestId, true) ?: return false
-        // No side-effecting executor is connected yet. Consume the approval without executing
-        // anything, and record explicitly that the approved action was not performed.
-        return approvalBroker.discardApprovedToken(token)
-    }
+    /** Preview is read-only and returns an Android-verified app label only for apps.launch. */
+    fun previewApproval(request: ManaApprovalRequest): String? =
+        approvedActionExecutor.previewLaunchLabel(request)
+
+    /** Call only from the owner's explicit confirmation button. */
+    fun confirmApproval(requestId: String): ManaApprovedActionResult =
+        approvedActionExecutor.confirmAndLaunch(requestId)
 
     fun denyApproval(requestId: String): Boolean = approvalBroker.deny(requestId)
 
