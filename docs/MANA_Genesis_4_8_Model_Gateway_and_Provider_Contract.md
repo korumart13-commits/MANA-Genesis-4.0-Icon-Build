@@ -70,7 +70,7 @@ The response action list is a proposal only. Android must pass each proposal thr
 
 ### Remaining deployment/integration gates
 
-The adapter is implemented as an injectable component, but it is not yet wired into the home-screen chat path because no verified gateway endpoint or device-token issuer is configured. No endpoint, provider, or credential has been invented. A real deployment still needs a verified HTTPS origin, server-side provider configuration, device enrollment/token rotation/revocation, backend implementation of protocol v1, privacy and retention controls, and an explicit app runtime factory that injects the verified config and OS-protected token provider.
+The adapter is wired into the home-screen chat path behind generated build configuration. It activates only when both trusted build variables `MANA_GATEWAY_ENDPOINT` and `MANA_GATEWAY_HOST` are set and pass validation. Neither variable is currently supplied in this repository's build, so the app remains in offline mode. No endpoint, provider, or credential has been invented. A real deployment still needs a verified HTTPS origin, server-side provider configuration, device enrollment/token issuance and rotation/revocation, backend implementation of protocol v1, privacy and retention controls, and a reviewed owner-approved enrollment UI that provisions the Android Keystore token.
 
 ## Owner authority
 
