@@ -52,6 +52,39 @@ def write_gateway_deployment_config(project: Path, endpoint: str, expected_host:
     )
 
 
+def write_voice_deployment_config(project: Path, endpoint: str, expected_host: str) -> None:
+    endpoint = endpoint.strip()
+    expected_host = expected_host.strip().lower()
+    if bool(endpoint) != bool(expected_host):
+        raise SystemExit("MANA_TTS_ENDPOINT and MANA_TTS_HOST must be configured together.")
+    if endpoint:
+        parsed = urlsplit(endpoint)
+        if (
+            parsed.scheme.lower() != "https"
+            or not parsed.hostname
+            or parsed.hostname.lower() != expected_host
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.query
+            or parsed.fragment
+            or parsed.path != "/v1/mana/voice/synthesize"
+            or parsed.port not in (None, 443)
+        ):
+            raise SystemExit("MANA voice build configuration failed HTTPS host/route validation.")
+    output = project / "app/src/main/java/com/mana/os/integration/ManaVoiceDeploymentConfig.kt"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
+        "package com.mana.os.integration\\n\\n"
+        "/** Generated from trusted build variables; blank values intentionally mean system-TTS fallback. */\\n"
+        "object ManaVoiceDeploymentConfig {\\n"
+        f"    const val ENDPOINT = {json.dumps(endpoint)}\\n"
+        f"    const val EXPECTED_HOST = {json.dumps(expected_host)}\\n"
+        "    fun isConfigured(): Boolean = ENDPOINT.isNotBlank() && EXPECTED_HOST.isNotBlank()\\n"
+        "}\\n",
+        encoding="utf-8",
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--project-dir", required=True, type=Path)
@@ -74,7 +107,8 @@ def main() -> None:
     target_dir = project / "app/src/main/java/com/mana/os/integration"
     target_dir.mkdir(parents=True, exist_ok=True)
     write_gateway_deployment_config(project, os.environ.get("MANA_GATEWAY_ENDPOINT", ""), os.environ.get("MANA_GATEWAY_HOST", ""))
-    for name in ("ManaGenesis.kt", "AndroidSelfDevelopment.kt", "ManaDevelopmentPipeline.kt", "ManaCognitiveRuntime.kt", "ManaLocalCognitiveMemory.kt", "ManaDialogueState.kt", "ManaDefaultCognitivePolicy.kt", "ManaGatewayReasoningModel.kt", "ManaAndroidGatewayCredentialStore.kt", "ManaGatewayChatService.kt", "ManaReadOnlyToolRegistry.kt", "ManaAndroidReadOnlyTools.kt", "ManaOwnerApprovalBroker.kt", "ManaApprovedActionValidation.kt", "ManaAndroidApprovedActionExecutor.kt"):
+    write_voice_deployment_config(project, os.environ.get("MANA_TTS_ENDPOINT", ""), os.environ.get("MANA_TTS_HOST", ""))
+    for name in ("ManaGenesis.kt", "AndroidSelfDevelopment.kt", "ManaDevelopmentPipeline.kt", "ManaCognitiveRuntime.kt", "ManaLocalCognitiveMemory.kt", "ManaDialogueState.kt", "ManaDefaultCognitivePolicy.kt", "ManaGatewayReasoningModel.kt", "ManaAndroidGatewayCredentialStore.kt", "ManaGatewayChatService.kt", "ManaVoiceGatewayClient.kt", "ManaReadOnlyToolRegistry.kt", "ManaAndroidReadOnlyTools.kt", "ManaOwnerApprovalBroker.kt", "ManaApprovedActionValidation.kt", "ManaAndroidApprovedActionExecutor.kt"):
         source = integration / name
         if not source.is_file() or source.stat().st_size == 0:
             raise SystemExit(f"Required integration source is missing or empty: {source}")
