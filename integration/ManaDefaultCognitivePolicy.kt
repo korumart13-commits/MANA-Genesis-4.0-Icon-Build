@@ -24,6 +24,7 @@ class ManaDefaultCognitivePolicy : ManaCognitivePolicy {
     private companion object {
         val READ_ONLY_TOOLS = setOf(
             "apps.list_installed",
+            "apps.find_launchable",
             "device.read_status",
             "device.read_battery",
             "device.read_storage",
