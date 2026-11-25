@@ -76,7 +76,7 @@ class ManaCognitiveRuntime(
                 observations += "Инструмент ${action.name}: ${result.summary.take(500)}"
             }
 
-            if (decision.stopAfterActions) {
+            if (answer == null && decision.stopAfterActions) {
                 answer = decision.finalAnswer?.takeIf { it.isNotBlank() }
                     ?: "Готово. Я выполнила доступные действия и проверила их результат."
             }
