@@ -53,8 +53,8 @@ class ManaToolTests(unittest.TestCase):
         self.assertIn("private fun recordConversation(userText: String, assistantText: String)", home)
         self.assertIn("dialogueState.add(", home)
         self.assertIn('kind = "chat_exchange"', home)
-        self.assertIn("recordConversation(text, offlineReply)", home)
-        self.assertIn("recordConversation(text, it)", home)
+        self.assertIn("recordConversation(text, answer)", home)
+        self.assertIn("recordConversation(userText: String, assistantText: String)", home)
 
     def test_dialogue_state_is_bounded_and_packaged(self):
         integration = Path(__file__).resolve().parents[2] / "integration"
@@ -336,23 +336,20 @@ class ManaToolTests(unittest.TestCase):
                     project, "https://attacker.example/v1/mana/respond", "gateway.example"
                 )
 
-    def test_android_keystore_gateway_credential_store_is_packaged(self):
+    def test_local_only_chat_runtime_is_packaged_without_cloud_fallback(self):
         integration = Path(__file__).resolve().parents[2] / "integration"
-        source = (integration / "ManaAndroidGatewayCredentialStore.kt").read_text(encoding="utf-8")
         prepare_source = (TOOLS / "prepare_android_project.py").read_text(encoding="utf-8")
-        self.assertIn('"ManaAndroidGatewayCredentialStore.kt"', prepare_source)
-        self.assertIn('AndroidKeyStore', source)
-        self.assertIn('AES/GCM/NoPadding', source)
-        self.assertIn('provisionAfterOwnerApproval', source)
-        self.assertIn('fun revoke()', source)
         chat = (integration / "ManaGatewayChatService.kt").read_text(encoding="utf-8")
         home = (integration / "ManaHomeActivity.kt").read_text(encoding="utf-8")
         self.assertIn('"ManaGatewayChatService.kt"', prepare_source)
         self.assertIn("ManaCognitiveRuntime(", chat)
+        self.assertIn("ManaEngine(", chat)
+        self.assertIn("localOnly = true", chat)
+        self.assertIn("fun canRespondLocally(): Boolean", chat)
         self.assertIn("ManaCancellationSignal()", chat)
         self.assertIn('actionButton("Стоп")', home)
         self.assertIn("gatewayChat.stop()", home)
-        self.assertIn("gatewayChat.isConfigured()", home)
+        self.assertNotIn("gatewayChat.isConfigured()", home)
 
     def run_patch_gate(self, project: Path, patch_text: str, *extra: str):
         patch = project.parent / "proposal.patch"
