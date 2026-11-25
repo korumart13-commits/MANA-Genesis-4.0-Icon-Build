@@ -62,7 +62,7 @@ jobs:
           echo "Using project: $PROJECT_DIR"
 
       - name: Repair malformed welcome string in source copy
-        working-directory: \${{ steps.project.outputs.dir }}
+        working-directory: ${{ steps.project.outputs.dir }}
         shell: bash
         run: |
           set -euo pipefail
@@ -88,6 +88,7 @@ jobs:
               raise SystemExit("Post-patch verification failed.")
           print("Post-patch verification passed.")
 
+          PY
       - name: Verify repaired Kotlin source
         working-directory: ${{ steps.project.outputs.dir }}
         shell: bash
