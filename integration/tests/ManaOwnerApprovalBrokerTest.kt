@@ -21,6 +21,17 @@ class ManaOwnerApprovalBrokerTest {
     }
 
     @Test
+    fun duplicatePendingRequestForSameExactActionIsReused() {
+        val broker = ManaOwnerApprovalBroker()
+        val action = ManaCognitiveAction("settings.change", mapOf("setting" to "wifi", "value" to "off"))
+        val first = broker.requestApproval(action, "Выключить Wi-Fi")!!
+        val second = broker.requestApproval(action, "Выключить Wi-Fi")!!
+
+        assertEquals(first.requestId, second.requestId)
+        assertEquals(1, broker.pendingRequests().size)
+    }
+
+    @Test
     fun tokenCannotAuthorizeChangedArgumentsOrDifferentAction() {
         val broker = ManaOwnerApprovalBroker()
         val action = ManaCognitiveAction("files.create", mapOf("name" to "note.txt"))
