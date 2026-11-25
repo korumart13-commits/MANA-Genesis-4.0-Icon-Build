@@ -58,11 +58,11 @@ def main() -> None:
 
     changed = []
     for line in text.splitlines():
-        if line.startswith("+++ "):
-            path = line[4:].split("\t", 1)[0]
+        if line.startswith(("--- ", "+++ ")):
+            path = line[4:].split("\\t", 1)[0]
             if path == "/dev/null":
                 continue
-            if path.startswith("b/"):
+            if path.startswith(("a/", "b/")):
                 path = path[2:]
             if path.startswith("/") or ".." in Path(path).parts:
                 fail(f"Unsafe patch path: {path}")
@@ -72,7 +72,8 @@ def main() -> None:
                 fail(f"Only Kotlin/Java source files are allowed: {path}")
             if not path.startswith(ALLOWED_PREFIXES):
                 fail(f"Path is outside the ManaOS source allowlist: {path}")
-            changed.append(path)
+            if line.startswith("+++ "):
+                changed.append(path)
 
     if not changed:
         fail("Patch does not change an allowed source file.")
