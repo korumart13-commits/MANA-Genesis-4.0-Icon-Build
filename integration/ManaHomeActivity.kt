@@ -128,6 +128,8 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
                 android.net.Uri.parse("package:$packageName")))
         }
         content.addView(settingsButton, marginTop(8))
+        val permissionCenterButton = actionButton("Центр разрешений MANA") { showPermissionCenter() }
+        content.addView(permissionCenterButton, marginTop(8))
         val homeButton = actionButton("Сделать MANA главным экраном") {
             startActivity(Intent(android.provider.Settings.ACTION_HOME_SETTINGS))
         }
@@ -312,6 +314,35 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
         textToSpeech?.shutdown()
         textToSpeech = null
         super.onDestroy()
+    }
+
+    /** Read-only view of MANA approval state and bounded in-memory audit events. */
+    private fun showPermissionCenter() {
+        val pending = gatewayChat.pendingApprovalRequests()
+        val events = gatewayChat.approvalAuditEvents().asReversed().take(20)
+        val details = buildString {
+            append("Ожидают решения: ").append(pending.size)
+            append("\n\nОдобрение MANA не равно системному разрешению Android.")
+            append("\nНикакие разрешения Android не выдаются автоматически.")
+            append("\nПодтверждённые запросы сейчас не исполняются: исполнитель действий ещё не подключён.")
+            append("\n\nПоследние события:")
+            if (events.isEmpty()) append("\nПока событий нет.")
+            events.forEach { event ->
+                val time = java.text.DateFormat.getTimeInstance().format(java.util.Date(event.timestampMillis))
+                append("\n• ").append(time).append(" · ").append(event.actionName)
+                    .append(" · ").append(event.event)
+            }
+            append("\n\nЖурнал хранится только в памяти текущего процесса и очищается после закрытия приложения.")
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Центр разрешений MANA")
+            .setMessage(details)
+            .setPositiveButton("Настройки Android") { _, _ ->
+                startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    android.net.Uri.parse("package:$packageName")))
+            }
+            .setNegativeButton("Закрыть", null)
+            .show()
     }
 
     /** Show each exact proposed action and its arguments before the owner decides. */
