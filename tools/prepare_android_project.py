@@ -45,6 +45,27 @@ def main() -> None:
     assets.mkdir(parents=True, exist_ok=True)
     shutil.copy2(license_file, assets / "manaos-license.txt")
 
+    # Add a real Android/JUnit test source to the extracted build copy.
+    test_source = integration / "tests" / "ManaCoreTest.kt"
+    if not test_source.is_file() or test_source.stat().st_size == 0:
+        raise SystemExit(f"Required Android unit test source is missing or empty: {test_source}")
+    test_target = project / "core/src/test/java/com/mana/os/core/ManaCoreTest.kt"
+    test_target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(test_source, test_target)
+
+    core_gradle = project / "core/build.gradle.kts"
+    if not core_gradle.is_file():
+        raise SystemExit(f"Core Gradle build file is missing: {core_gradle}")
+    gradle_source = core_gradle.read_text(encoding="utf-8")
+    junit_dependency = 'testImplementation("junit:junit:4.13.2")'
+    if junit_dependency not in gradle_source:
+        gradle_source += (
+            "\\n\\ndependencies {\\n"
+            f"    {junit_dependency}\\n"
+            "}\\n"
+        )
+        core_gradle.write_text(gradle_source, encoding="utf-8")
+
     activity = project / "app/src/main/java/com/mana/os/app/MainActivity.kt"
     if not activity.is_file():
         raise SystemExit(f"Expected MANA dashboard source is missing: {activity}")
@@ -146,7 +167,7 @@ def main() -> None:
             raise SystemExit(f"Post-edit verification failed: missing {marker}")
 
     activity.write_text(source, encoding="utf-8")
-    print("Integrated three MANA Kotlin components, dashboard entry point, and project license.")
+    print("Integrated three MANA Kotlin components, dashboard, project license and Android core tests.")
     print("Verified Android source anchors. Changes apply only to the temporary CI source copy.")
 
 
