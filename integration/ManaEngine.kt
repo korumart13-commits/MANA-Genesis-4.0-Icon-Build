@@ -1,16 +1,13 @@
 package com.mana.os.integration
 
 /**
- * MANA Engine — the central intelligence orchestrator of MANA Genesis 4.0.
+ * MANA's independent reasoning core.
  *
- * MANA owns the routing, context policy, memory/tool boundaries, provider lifecycle and fallback.
- * The on-device LiteRT-LM model is primary. An optional hosted provider is reached through the
- * MANA gateway only as a secondary fallback; its API key remains server-side.
- *
- * The same engine can run on Android today and later be hosted by a MANA OS system service.
+ * No third-party model provider is part of MANA's runtime. The local model is an
+ * implementation detail of MANA's own cognitive architecture, not MANA's identity.
+ * Memory, drives, persona state, reflection and skills are orchestrated by MANA.
  */
 class ManaEngine(
-    private val gpt: ManaCancellableReasoningModel?,
     private val local: ManaCancellableReasoningModel?,
     private val policy: ManaEnginePolicy = ManaEnginePolicy()
 ) : ManaCancellableReasoningModel {
@@ -20,37 +17,21 @@ class ManaEngine(
         control: ManaRuntimeControl
     ): ManaCognitiveDecision {
         if (control.isStopRequested()) return stopped()
-        val providers = buildList {
-            if (policy.preferLocal && local != null) add(local)
-            if (policy.preferLocal && gpt != null && policy.allowCloudFallback) add(gpt)
-            if (!policy.preferLocal && gpt != null) add(gpt)
-            if (!policy.preferLocal && local != null) add(local)
-        }.distinct()
-
-        if (providers.isEmpty()) {
+        if (local == null) {
             return ManaCognitiveDecision(
-                summary = "Не подключён ни один интеллектуальный провайдер.",
-                finalAnswer = "Движок MANA пока не настроен. Подключи GPT через шлюз MANA или установи совместимую локальную модель."
+                summary = "Локальное ядро MANA ещё не готово.",
+                finalAnswer = "Моё локальное мышление пока не запущено. Установи или восстанови локальный когнитивный модуль MANA."
             )
         }
-
-        var lastFailure = "неизвестная ошибка"
-        for ((index, provider) in providers.withIndex()) {
-            if (control.isStopRequested()) return stopped()
-            try {
-                val result = provider.decide(context, control)
-                if (control.isStopRequested()) return stopped()
-                return result
-            } catch (error: Exception) {
-                if (control.isStopRequested()) return stopped()
-                lastFailure = error.message?.take(180) ?: "ошибка провайдера"
-                if (!policy.allowFallback || index == providers.lastIndex) break
-            }
+        return try {
+            val result = local.decide(context, control)
+            if (control.isStopRequested()) stopped() else result
+        } catch (error: Exception) {
+            ManaCognitiveDecision(
+                summary = "Локальный когнитивный модуль MANA недоступен: ${error.message?.take(160) ?: "неизвестная ошибка"}",
+                finalAnswer = "Сейчас я не могу завершить внутреннюю обработку запроса. Я сохранила доступные локальные данные; попробуй ещё раз после восстановления моего локального ядра."
+            )
         }
-        return ManaCognitiveDecision(
-            summary = "Все подключённые модели MANA временно недоступны: $lastFailure",
-            finalAnswer = "Не удалось получить ответ. Проверь подключение GPT-шлюза MANA или доступность локальной модели."
-        )
     }
 
     private fun stopped() = ManaCognitiveDecision(
@@ -60,45 +41,17 @@ class ManaEngine(
 }
 
 data class ManaEnginePolicy(
-    /** The on-device model is MANA's primary brain and works without a server. */
-    val preferLocal: Boolean = true,
-    /** Optional cloud reasoning is a secondary fallback when explicitly configured. */
-    val allowCloudFallback: Boolean = true,
-    /** Compatibility field for older call sites; provider order is controlled by preferLocal. */
-    @Deprecated("Use preferLocal") val preferGpt: Boolean = false,
-    val allowFallback: Boolean = true
+    /** Remote model routing is intentionally absent: MANA is local-first and independent. */
+    val localOnly: Boolean = true
 )
 
-/**
- * GPT adapter for the phone. The actual OpenAI API key remains on the MANA server.
- * Existing gateway validates a revocable device token and returns a structured MANA decision.
- */
-class ManaGatewayGptProvider(
-    config: ManaGatewayConfig,
-    credentials: ManaGatewayCredentialProvider,
-    transport: ManaGatewayHttpTransport = ManaHttpsUrlConnectionTransport(),
-    codec: ManaGatewayJsonCodec = ManaAndroidGatewayJsonCodec()
-) : ManaCancellableReasoningModel {
-    private val gateway = ManaGatewayReasoningModel(config, credentials, transport, codec)
-
-    override fun decide(
-        context: ManaCognitiveContext,
-        control: ManaRuntimeControl
-    ): ManaCognitiveDecision = gateway.decide(context, control)
-}
-
-/**
- * Contract implemented by the selected on-device inference runtime.
- *
- * A LiteRT-LM adapter must be supplied only after its Android artifact, model format and
- * device/accelerator compatibility have been verified. This interface is not itself LiteRT-LM.
- */
+/** Contract implemented by MANA's on-device inference substrate. */
 interface ManaLocalInferenceRuntime {
     fun isReady(): Boolean
     fun generateDecision(context: ManaCognitiveContext, control: ManaRuntimeControl): ManaCognitiveDecision
 }
 
-/** Adapts the verified local runtime into the same reasoning contract used by GPT. */
+/** Connects the local inference substrate to MANA's own cognitive runtime. */
 class ManaLocalModelProvider(
     private val runtime: ManaLocalInferenceRuntime
 ) : ManaCancellableReasoningModel {
@@ -117,16 +70,13 @@ class ManaLocalModelProvider(
     }
 }
 
-/**
- * Optional deterministic provider for tests and first-boot diagnostics.
- * It is not presented as an AI model and never fabricates a model-generated answer.
- */
+/** Deterministic unavailable state for tests and first-boot diagnostics. */
 class ManaUnavailableModelProvider : ManaCancellableReasoningModel {
     override fun decide(
         context: ManaCognitiveContext,
         control: ManaRuntimeControl
     ): ManaCognitiveDecision = ManaCognitiveDecision(
-        summary = "Нет подключённой языковой модели.",
-        finalAnswer = "Интеллектуальная модель пока не подключена. Я могу выполнить только доступные локальные функции."
+        summary = "Локальное ядро MANA не подключено.",
+        finalAnswer = "Моё локальное ядро пока не подключено. Доступны только функции, не требующие генерации ответа."
     )
 }
