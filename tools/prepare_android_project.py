@@ -63,6 +63,25 @@ def main() -> None:
     test_target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(test_source, test_target)
 
+    cognitive_test_source = integration / "tests" / "ManaCognitiveRuntimeTest.kt"
+    if not cognitive_test_source.is_file() or cognitive_test_source.stat().st_size == 0:
+        raise SystemExit(f"Required cognitive runtime test source is missing or empty: {cognitive_test_source}")
+    app_test_target = project / "app/src/test/java/com/mana/os/integration/ManaCognitiveRuntimeTest.kt"
+    app_test_target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(cognitive_test_source, app_test_target)
+
+    app_gradle = project / "app/build.gradle.kts"
+    if not app_gradle.is_file():
+        raise SystemExit(f"App Gradle build file is missing: {app_gradle}")
+    app_gradle_source = app_gradle.read_text(encoding="utf-8")
+    if junit_dependency not in app_gradle_source:
+        app_gradle_source += (
+            "\n\ndependencies {\n"
+            f"    {junit_dependency}\n"
+            "}\n"
+        )
+        app_gradle.write_text(app_gradle_source, encoding="utf-8")
+
     core_gradle = project / "core/build.gradle.kts"
     if not core_gradle.is_file():
         raise SystemExit(f"Core Gradle build file is missing: {core_gradle}")
