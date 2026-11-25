@@ -71,7 +71,17 @@ class ManaCognitiveRuntime(
                     answer = "Остановлено по команде владельца."
                     break
                 }
-                val result = tools.execute(action)
+                // Cancellable adapters can stop an in-flight operation when the host requests it.
+                // Legacy adapters remain supported, but can only be stopped between tool calls.
+                val result = if (tools is ManaCancellableCognitiveTools) {
+                    tools.execute(action, control)
+                } else {
+                    tools.execute(action)
+                }
+                if (control.isStopRequested()) {
+                    answer = "Остановлено по команде владельца."
+                    break
+                }
                 toolEvents += ManaToolEvent(action.name, result.success, result.summary)
                 observations += "Инструмент ${action.name}: ${result.summary.take(500)}"
             }
@@ -149,6 +159,14 @@ interface ManaCognitiveMemory {
 interface ManaCognitiveTools {
     fun availableTools(): List<String>
     fun execute(action: ManaCognitiveAction): ManaCognitiveToolResult
+}
+
+/**
+ * Optional contract for adapters that can interrupt a running operation.
+ * Implementations must poll control during long work and stop before further side effects.
+ */
+interface ManaCancellableCognitiveTools : ManaCognitiveTools {
+    fun execute(action: ManaCognitiveAction, control: ManaRuntimeControl): ManaCognitiveToolResult
 }
 
 interface ManaCognitivePolicy {
