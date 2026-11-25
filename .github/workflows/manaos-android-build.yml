@@ -61,6 +61,16 @@ jobs:
           chmod +x "$WRAPPER"
           echo "Using project: $PROJECT_DIR"
 
+      - name: Bundle MANA OS project license into app assets
+        working-directory: ${{ steps.project.outputs.dir }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/main/assets
+          cp "$GITHUB_WORKSPACE/docs/MANAOS_PERSONAL_LICENSE_1.0.md" app/src/main/assets/manaos-license.txt
+          test -s app/src/main/assets/manaos-license.txt
+          echo "Bundled MANA OS Personal Use License 1.0 into app assets."
+
       - name: Repair malformed welcome string in source copy
         working-directory: ${{ steps.project.outputs.dir }}
         shell: bash
