@@ -19,6 +19,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import android.content.Context
+import android.media.MediaPlayer
 import android.widget.*
 import com.mana.os.cloud.ManaCloudClient
 import com.mana.os.integration.AndroidSelfDevelopment
@@ -30,6 +31,8 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
     private var textToSpeech: TextToSpeech? = null
     private var ttsReady = false
     private var avatarWebView: WebView? = null
+    private var voicePlayer: MediaPlayer? = null
+    private val voiceClient by lazy { com.mana.os.integration.ManaVoiceGatewayClient(this) }
     private val prefs by lazy { getSharedPreferences("mana_setup", MODE_PRIVATE) }
     private lateinit var content: LinearLayout
     private lateinit var status: TextView
@@ -323,6 +326,58 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
     }
 
     private fun speak(text: String) {
+        if (text.isBlank()) return
+        if (voiceClient.isConfigured() &&
+            com.mana.os.integration.ManaAndroidGatewayCredentialStore(this).currentBearerToken() != null) {
+            val started = voiceClient.synthesize(text) { audioFile, error ->
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) {
+                        audioFile?.delete()
+                        return@runOnUiThread
+                    }
+                    if (audioFile == null) {
+                        speakWithSystemTts(text)
+                        if (!error.isNullOrBlank()) toast("Голос MANA недоступен. Использую голос Android.")
+                    } else {
+                        try {
+                            voicePlayer?.release()
+                            val player = MediaPlayer()
+                            voicePlayer = player
+                            player.setDataSource(audioFile.absolutePath)
+                            player.setOnPreparedListener {
+                                setAvatarSpeaking(true)
+                                it.start()
+                            }
+                            player.setOnCompletionListener {
+                                setAvatarSpeaking(false)
+                                it.release()
+                                if (voicePlayer === it) voicePlayer = null
+                                audioFile.delete()
+                            }
+                            player.setOnErrorListener { failed, _, _ ->
+                                setAvatarSpeaking(false)
+                                failed.release()
+                                if (voicePlayer === failed) voicePlayer = null
+                                audioFile.delete()
+                                speakWithSystemTts(text)
+                                true
+                            }
+                            player.prepareAsync()
+                        } catch (_: Exception) {
+                            audioFile.delete()
+                            voicePlayer?.release()
+                            voicePlayer = null
+                            speakWithSystemTts(text)
+                        }
+                    }
+                }
+            }
+            if (started) return
+        }
+        speakWithSystemTts(text)
+    }
+
+    private fun speakWithSystemTts(text: String) {
         if (ttsReady && text.isNotBlank()) {
             textToSpeech?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "mana_reply")
         }
@@ -338,6 +393,10 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
 
     override fun onDestroy() {
         gatewayChat.stop()
+        voiceClient.cancel()
+        voicePlayer?.runCatching { stop() }
+        voicePlayer?.release()
+        voicePlayer = null
         textToSpeech?.stop()
         textToSpeech?.shutdown()
         avatarWebView?.stopLoading()
