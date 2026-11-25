@@ -168,3 +168,8 @@ The executor rejects every other value and extra argument, checks Android policy
 ## Read-only audio and ringer status
 
 `device.read_audio_status` reports only the current ringer mode and the numeric ring/media volume levels using Android's `AudioManager`. It does not play audio, record microphone input, change volume, or alter ringer mode. The tool is read-only and can be queried without a special Android role.
+
+
+## Owner-approved ring and media volume changes
+
+A narrowly scoped `device.set_audio_volume` action can set only the ring or media stream to an integer percentage from 0 through 100. The action requires exactly two arguments (`stream` and `percent`); unsupported streams, malformed percentages, and extra arguments are rejected. The executor reads the device-specific maximum volume, maps the percentage to the supported Android level, consumes the exact one-time owner approval token, and only then calls `AudioManager.setStreamVolume`. The owner dialog identifies the stream and target percentage and explains that the existing volume will be replaced. It never changes alarm volume, accessibility volume, or Do Not Disturb state. Android's normal `MODIFY_AUDIO_SETTINGS` permission is declared; no microphone permission is used.
