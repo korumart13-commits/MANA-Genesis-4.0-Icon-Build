@@ -17,7 +17,8 @@ class ManaCognitiveRuntime(
     private val maxCycles: Int = 4,
     private val control: ManaRuntimeControl = ManaRuntimeControl.NEVER_STOP,
     private val dialogueState: ManaDialogueState? = null,
-    private val retriever: ManaKnowledgeRetriever? = null
+    private val retriever: ManaKnowledgeRetriever? = null,
+    private val approvalBroker: ManaOwnerApprovalBroker? = null
 ) {
     init { require(maxCycles in 1..8) }
 
@@ -28,6 +29,7 @@ class ManaCognitiveRuntime(
         }
         val observations = mutableListOf<String>()
         val toolEvents = mutableListOf<ManaToolEvent>()
+        val approvalRequests = mutableListOf<ManaApprovalRequest>()
         val recalled = memory.recall(input, limit = 8)
         val activeRetriever = retriever
         val retrievedSources = if (control.isStopRequested() || activeRetriever == null) {
@@ -85,8 +87,15 @@ class ManaCognitiveRuntime(
                 val verdict = policy.check(action)
                 if (verdict != ManaActionVerdict.ALLOW) {
                     val message = when (verdict) {
-                        ManaActionVerdict.REQUIRES_OWNER_CONFIRMATION ->
-                            "Действие «${action.name}» ожидает подтверждения владельца."
+                        ManaActionVerdict.REQUIRES_OWNER_CONFIRMATION -> {
+                            val request = approvalBroker?.requestApproval(
+                                action,
+                                decision.summary.takeIf { it.isNotBlank() } ?: "Мана предлагает выполнить действие: ${action.name}"
+                            )
+                            if (request != null) approvalRequests += request
+                            if (request != null) "Запрос «${action.name}» отправлен владельцу на подтверждение."
+                            else "Действие «${action.name}» требует подтверждения владельца; запрос не создан."
+                        }
                         ManaActionVerdict.DENY ->
                             "Действие «${action.name}» заблокировано правилами безопасности."
                         else -> "Действие недоступно."
@@ -134,7 +143,7 @@ class ManaCognitiveRuntime(
                 )
             )
         }
-        return ManaCognitiveResult(finalText, cycles, toolEvents, observations.takeLast(5))
+        return ManaCognitiveResult(finalText, cycles, toolEvents, observations.takeLast(5), approvalRequests)
     }
 }
 
@@ -177,7 +186,8 @@ data class ManaCognitiveResult(
     val answer: String,
     val cycles: Int,
     val toolEvents: List<ManaToolEvent>,
-    val progressSummaries: List<String>
+    val progressSummaries: List<String>,
+    val approvalRequests: List<ManaApprovalRequest> = emptyList()
 )
 
 enum class ManaActionVerdict { ALLOW, REQUIRES_OWNER_CONFIRMATION, DENY }
