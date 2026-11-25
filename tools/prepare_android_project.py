@@ -171,6 +171,12 @@ def main() -> None:
 
     manifest = project / "app/src/main/AndroidManifest.xml"
     manifest_text = manifest.read_text(encoding="utf-8")
+    audio_permission = '    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\\n'
+    if "android.permission.MODIFY_AUDIO_SETTINGS" not in manifest_text:
+        manifest_text = replace_once(
+            manifest_text, "<application", audio_permission + "    <application",
+            "MANA audio settings permission"
+        )
     if "<queries>" not in manifest_text:
         launcher_visibility = """    <queries>
         <intent>
