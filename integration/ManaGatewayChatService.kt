@@ -96,7 +96,8 @@ class ManaGatewayChatService(
                     maxCycles = 3,
                     control = signal,
                     dialogueState = dialogueState,
-                    approvalBroker = approvalBroker
+                    approvalBroker = approvalBroker,
+                    growthEngine = ManaGrowthEngine(appContext)
                 )
                 val result = runtime.respond(message, conversationId)
                 if (signal.isStopRequested()) callback(null, "Запрос остановлен.", emptyList())
