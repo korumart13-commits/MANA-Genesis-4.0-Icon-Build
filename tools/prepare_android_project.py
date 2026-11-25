@@ -63,7 +63,7 @@ def replace_once(source: str, old: str, new: str, label: str) -> str:
 
 def ensure_audio_permission(manifest_text: str) -> str:
     """Add MODIFY_AUDIO_SETTINGS with a real newline, exactly once."""
-    permission = '    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\\n'
+    permission = '    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n'
     if "android.permission.MODIFY_AUDIO_SETTINGS" not in manifest_text:
         manifest_text = replace_once(
             manifest_text, "<application", permission + "    <application",
