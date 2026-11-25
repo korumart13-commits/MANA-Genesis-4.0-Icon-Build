@@ -39,10 +39,10 @@ def ensure_mana_components(project: Path) -> None:
     for permission in permissions:
         match_name = re.search(r'android:name="([^"]+)"', permission)
         if match_name and match_name.group(1) not in source:
-            root = re.search(r"<manifest\\b[^>]*>", source)
+            root = re.search(r"<manifest\b[^>]*>", source)
             if not root:
                 raise SystemExit("Could not safely locate the Android manifest root element.")
-            source = source[:root.end()] + "\\n" + permission + source[root.end():]
+            source = source[:root.end()] + "\n" + permission + source[root.end():]
     app_close = source.find("</application>")
     if app_close < 0:
         raise SystemExit("Could not safely locate the Android application closing tag.")
@@ -62,7 +62,7 @@ def ensure_mana_components(project: Path) -> None:
             '    <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="User-started floating MANA avatar overlay" />',
             '</service>',
         ]
-        source = source[:app_close] + "        " + "\\n        ".join(components) + "\\n    " + source[app_close:]
+        source = source[:app_close] + "        " + "\n        ".join(components) + "\n    " + source[app_close:]
     else:
         required = ("com.mana.os.app.ManaDiaryActivity", "com.mana.os.app.ManaLifeManagerActivity", "com.mana.os.integration.ManaAvatarService")
         missing = [name for name in required if name not in source]
