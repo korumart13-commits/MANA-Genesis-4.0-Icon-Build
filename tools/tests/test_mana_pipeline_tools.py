@@ -101,7 +101,7 @@ class ManaToolTests(unittest.TestCase):
         integration = Path(__file__).resolve().parents[2] / "integration"
         source = (integration / "ManaCognitiveRuntime.kt").read_text(encoding="utf-8")
         self.assertIn("private val retriever: ManaKnowledgeRetriever? = null", source)
-        self.assertIn("retriever.retrieve(input, limit = 5)", source)
+        self.assertIn("activeRetriever.retrieve(input, limit = 5)", source)
         self.assertIn("retrievedSources = retrievedSources", source)
         self.assertIn("val retrievedSources: List<ManaRetrievedSource> = emptyList()", source)
         self.assertIn("interface ManaCancellableKnowledgeRetriever : ManaKnowledgeRetriever", source)
