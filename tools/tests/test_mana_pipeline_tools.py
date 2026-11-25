@@ -90,6 +90,13 @@ class ManaToolTests(unittest.TestCase):
         self.assertIn("interface ManaCancellableReasoningModel : ManaReasoningModel", source)
         self.assertIn("interface ManaCancellableCognitiveTools : ManaCognitiveTools", source)
 
+    def test_android_build_retries_transient_dependency_throttling(self):
+        workflow = (Path(__file__).resolve().parents[2] / ".github/workflows/manaos-android-build.yml").read_text(encoding="utf-8")
+        self.assertIn("for attempt in 1 2 3", workflow)
+        self.assertIn("./gradlew --no-daemon --max-workers=2 --stacktrace test assembleDebug", workflow)
+        self.assertIn("sleep \"$delay\"", workflow)
+        self.assertIn("GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2", workflow)
+
     def test_source_aware_retrieval_is_bounded_and_untrusted(self):
         integration = Path(__file__).resolve().parents[2] / "integration"
         source = (integration / "ManaCognitiveRuntime.kt").read_text(encoding="utf-8")
