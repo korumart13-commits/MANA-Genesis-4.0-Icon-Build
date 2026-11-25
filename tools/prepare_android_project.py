@@ -89,6 +89,11 @@ def main() -> None:
         raise SystemExit("MANA diary activity source is missing or empty.")
     shutil.copy2(diary_source, app_source_dir / "ManaDiaryActivity.kt")
 
+    life_source = integration / "ManaLifeManagerActivity.kt"
+    if not life_source.is_file() or life_source.stat().st_size == 0:
+        raise SystemExit("MANA Life Manager activity source is missing or empty.")
+    shutil.copy2(life_source, app_source_dir / "ManaLifeManagerActivity.kt")
+
     assets = project / "app/src/main/assets"
     assets.mkdir(parents=True, exist_ok=True)
     shutil.copy2(license_file, assets / "manaos-license.txt")
@@ -215,6 +220,14 @@ def main() -> None:
         </activity>
 """
     diary_activity = '        <activity android:name="com.mana.os.app.ManaDiaryActivity" android:exported="false" android:label="Дневник MANA" />\n'
+    life_activity = '        <activity android:name="com.mana.os.app.ManaLifeManagerActivity" android:exported="false" android:label="MANA — задачи" />\n'
+    if "com.mana.os.app.ManaLifeManagerActivity" not in manifest_text:
+        manifest_text = replace_once(
+            manifest_text,
+            '        <activity android:name="com.mana.os.app.MainActivity" android:exported="true">',
+            life_activity + '        <activity android:name="com.mana.os.app.MainActivity" android:exported="true">',
+            "MANA Life Manager activity manifest entry",
+        )
     if "com.mana.os.app.ManaDiaryActivity" not in manifest_text:
         manifest_text = replace_once(
             manifest_text,
