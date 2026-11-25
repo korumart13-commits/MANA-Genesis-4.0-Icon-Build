@@ -70,6 +70,9 @@ class ManaAndroidApprovedActionExecutor(
                 val page = ManaApprovedActionValidation.settingsPage(action)
                     ?: return reject(requestId, "Эта страница настроек не входит в разрешённый список.")
                 val resolvedIntent = Intent(page.androidAction)
+                if (page == ManaSettingsPage.NOTIFICATIONS) {
+                    resolvedIntent.putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, app.packageName)
+                }
                 if (resolvedIntent.resolveActivity(app.packageManager) == null) {
                     return reject(requestId, "Эта страница настроек недоступна на устройстве.")
                 }
