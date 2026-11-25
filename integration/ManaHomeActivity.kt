@@ -355,7 +355,8 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
             val supportedLaunch = request.actionName == "apps.launch" && launchLabel != null
             val supportedSettingsPage = request.actionName == "settings.open_page" && launchLabel != null
             val supportedDnd = request.actionName == "device.set_dnd_filter" && launchLabel != null
-            val supportedAction = supportedLaunch || supportedSettingsPage || supportedDnd
+            val supportedAudio = request.actionName == "device.set_audio_volume" && launchLabel != null
+            val supportedAction = supportedLaunch || supportedSettingsPage || supportedDnd || supportedAudio
             val details = buildString {
                 append(request.summary)
                 append("\n\nДействие: ").append(request.actionName)
@@ -369,6 +370,9 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
                 } else if (supportedDnd) {
                     append("\n\nРежим телефона: ").append(launchLabel)
                     append("\n\nПосле подтверждения Android изменит режим «Не беспокоить». Режим останется включённым, пока ты не изменишь его вручную.")
+                } else if (supportedAudio) {
+                    append("\n\nНовая громкость: ").append(launchLabel)
+                    append("\n\nПосле подтверждения MANA изменит только выбранную громкость звонка или мультимедиа. Текущая громкость будет заменена.")
                 } else {
                     append("\n\nПараметры:")
                     request.arguments.forEach { (key, value) ->
@@ -386,6 +390,7 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
                     supportedLaunch -> "Подтвердить запуск"
                     supportedSettingsPage -> "Открыть настройки"
                     supportedDnd -> "Применить режим"
+                    supportedAudio -> "Изменить громкость"
                     else -> "Закрыть без выполнения"
                 }) { _, _ ->
                     if (supportedAction) {
