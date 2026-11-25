@@ -45,6 +45,7 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         textToSpeech = TextToSpeech(this, this)
+        restoreDialogueFromLocalMemory()
         window.statusBarColor = bg
         window.navigationBarColor = bg
         renderHome()
@@ -185,6 +186,31 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
                 }
             }
         }
+    }
+
+    /** Restore only recent chat exchanges from app-private local memory into bounded dialogue context. */
+    private fun restoreDialogueFromLocalMemory() {
+        localMemory.recentEntries(30).asReversed()
+            .filter { it.kind == "chat_exchange" }
+            .forEach { entry ->
+                val userStart = entry.text.indexOf("Ты: ")
+                val assistantStart = entry.text.indexOf("\\nМана: ")
+                if (userStart >= 0 && assistantStart > userStart) {
+                    val userText = entry.text.substring(userStart + 5, assistantStart).trim()
+                    val assistantText = entry.text.substring(assistantStart + 7).trim()
+                    if (userText.isNotBlank() && assistantText.isNotBlank()) {
+                        dialogueState.add(
+                            com.mana.os.integration.ManaDialogueTurn(
+                                topic = userText.take(80),
+                                userSummary = userText.take(500),
+                                assistantSummary = assistantText.take(500),
+                                tone = com.mana.os.integration.ManaDialogueTone.NEUTRAL,
+                                timestampMillis = entry.timestampMillis
+                            )
+                        )
+                    }
+                }
+            }
     }
 
     /** Save a concise, bounded local conversation summary; this is not sent to any server. */
