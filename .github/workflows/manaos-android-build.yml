@@ -82,6 +82,20 @@ jobs:
           echo "dir=$project_dir" >> "$GITHUB_OUTPUT"
           echo "Using Android project: $project_dir"
 
+      - name: Generate and bundle original MANA 3D avatar
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y blender
+          mkdir -p "$GITHUB_WORKSPACE/avatar-build" "$GITHUB_WORKSPACE/avatar-renderer"
+          blender --background --python "$GITHUB_WORKSPACE/tools/build_mana_avatar.py" -- --output "$GITHUB_WORKSPACE/avatar-build/mana_avatar.glb"
+          curl --fail --location --retry 3 "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js" --output "$GITHUB_WORKSPACE/avatar-renderer/three.module.js"
+          curl --fail --location --retry 3 "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js" --output "$GITHUB_WORKSPACE/avatar-renderer/GLTFLoader.js"
+          test -s "$GITHUB_WORKSPACE/avatar-build/mana_avatar.glb"
+          test -s "$GITHUB_WORKSPACE/avatar-renderer/three.module.js"
+          test -s "$GITHUB_WORKSPACE/avatar-renderer/GLTFLoader.js"
+
       - name: Integrate MANA runtime and dashboard into the temporary source copy
         shell: bash
         env:
@@ -93,7 +107,9 @@ jobs:
           python3 tools/prepare_android_project.py \
             --project-dir "$PROJECT_DIR" \
             --integration-dir "$GITHUB_WORKSPACE/integration" \
-            --license-file "$GITHUB_WORKSPACE/docs/MANAOS_PERSONAL_LICENSE_1.0.md"
+            --license-file "$GITHUB_WORKSPACE/docs/MANAOS_PERSONAL_LICENSE_1.0.md" \
+            --avatar-file "$GITHUB_WORKSPACE/avatar-build/mana_avatar.glb" \
+            --avatar-renderer-dir "$GITHUB_WORKSPACE/avatar-renderer"
 
       - name: Create source inventory and audit archive
         shell: bash
