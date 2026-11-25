@@ -123,10 +123,11 @@ jobs:
         shell: bash
         env:
           PROJECT_DIR: ${{ steps.project.outputs.dir }}
-          MANA_GATEWAY_ENDPOINT: ${{ vars.MANA_GATEWAY_ENDPOINT }}
-          MANA_GATEWAY_HOST: ${{ vars.MANA_GATEWAY_HOST }}
-          MANA_TTS_ENDPOINT: ${{ vars.MANA_TTS_ENDPOINT }}
-          MANA_TTS_HOST: ${{ vars.MANA_TTS_HOST }}
+          # Offline build profile: no cloud gateway or hosted TTS is required.
+          MANA_GATEWAY_ENDPOINT: ""
+          MANA_GATEWAY_HOST: ""
+          MANA_TTS_ENDPOINT: ""
+          MANA_TTS_HOST: ""
         run: |
           set -euo pipefail
           python3 tools/prepare_android_project.py \
