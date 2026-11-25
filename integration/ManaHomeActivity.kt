@@ -35,6 +35,7 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
     private val conversationId = java.util.UUID.randomUUID().toString()
     private val dialogueState = com.mana.os.integration.ManaDialogueState()
     private val localMemory by lazy { com.mana.os.integration.ManaLocalCognitiveMemory(this) }
+    private val gatewayChat by lazy { com.mana.os.integration.ManaGatewayChatService(this, conversationId, dialogueState) }
 
     private val bg = Color.rgb(5, 15, 34)
     private val panel = Color.rgb(12, 32, 62)
@@ -105,6 +106,9 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
         val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         actions.addView(actionButton("Отправить") { sendMessage() }, LinearLayout.LayoutParams(0, dp(48), 1f))
         actions.addView(actionButton("Голос") { startVoiceInput() }, LinearLayout.LayoutParams(0, dp(48), 1f).apply { leftMargin = dp(8) })
+        actions.addView(actionButton("Стоп") {
+            if (!gatewayChat.stop()) toast("Сейчас нет активного запроса.")
+        }, LinearLayout.LayoutParams(0, dp(48), 1f).apply { leftMargin = dp(8) })
         chatCard.addView(actions, marginTop(8))
         content.addView(chatCard, marginTop(8))
 
@@ -148,6 +152,11 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
     }
 
     private fun checkCloud() {
+        if (gatewayChat.isConfigured()) {
+            status.text = "Шлюз MANA: адрес встроен в сборку. Проверка подключения произойдёт при отправке сообщения."
+            cloudReady = false
+            return
+        }
         val url = prefs.getString("cloud_url", "").orEmpty()
         if (url.isBlank()) {
             status.text = "Облако: не подключено. Адрес сервера не настроен; работаем в локальном режиме."
@@ -165,6 +174,24 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
     private fun sendMessage() {
         val text = message.text.toString().trim()
         if (text.isEmpty()) return
+        if (gatewayChat.isConfigured()) {
+            chatLog.text = "Ты: $text\n\nМана: отправляю запрос в защищённый шлюз…"
+            message.setText("")
+            (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
+                .hideSoftInputFromWindow(message.windowToken, 0)
+            val started = gatewayChat.send(text) { answer, error ->
+                runOnUiThread {
+                    val reply = answer ?: "Не удалось получить ответ: ${error ?: "неизвестная ошибка"}"
+                    chatLog.text = "Ты: $text\n\nМана: $reply"
+                    if (answer != null) {
+                        speak(answer)
+                        recordConversation(text, answer)
+                    }
+                }
+            }
+            if (!started) toast("Шлюз MANA не настроен. Работаю локально.")
+            return
+        }
         val offlineReply = "Сейчас я работаю локально. Облачный чат не подключён, поэтому сообщение не отправлено."
         chatLog.text = "Ты: $text\n\n" + if (!cloudReady) "Мана: $offlineReply" else "Мана: отправляю сообщение…"
         if (!cloudReady) {
@@ -279,6 +306,7 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
     }
 
     override fun onDestroy() {
+        gatewayChat.stop()
         textToSpeech?.stop()
         textToSpeech?.shutdown()
         textToSpeech = null
