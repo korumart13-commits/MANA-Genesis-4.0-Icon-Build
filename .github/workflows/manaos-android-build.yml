@@ -172,9 +172,25 @@ jobs:
       - name: Run Android unit tests and assemble debug APK
         working-directory: ${{ steps.project.outputs.dir }}
         shell: bash
+        env:
+          GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2
         run: |
           set -euo pipefail
-          ./gradlew --no-daemon --stacktrace test assembleDebug
+          # Maven Central may temporarily throttle CI with HTTP 429. Retry the
+          # complete dependency resolution/build with bounded concurrency.
+          for attempt in 1 2 3; do
+            echo "Android build attempt ${attempt}/3"
+            if ./gradlew --no-daemon --max-workers=2 --stacktrace test assembleDebug; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              delay=$((attempt * 30))
+              echo "Gradle failed; retrying after ${delay}s (often transient repository throttling)."
+              sleep "$delay"
+            fi
+          done
+          echo "Android build failed after three attempts."
+          exit 1
 
       - name: Evaluate build and static-analysis evidence
         if: always()
