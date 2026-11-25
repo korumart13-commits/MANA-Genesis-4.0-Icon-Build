@@ -44,6 +44,23 @@ class ManaToolTests(unittest.TestCase):
         self.assertIn("fun clear()", source)
         self.assertNotIn("https://", source)
 
+    def test_dialogue_state_is_bounded_and_packaged(self):
+        integration = Path(__file__).resolve().parents[2] / "integration"
+        source = (integration / "ManaDialogueState.kt").read_text(encoding="utf-8")
+        prepare = (TOOLS / "prepare_android_project.py").read_text(encoding="utf-8")
+        self.assertIn("require(maxTurns in 1..100)", source)
+        self.assertIn("while (turns.size > maxTurns)", source)
+        self.assertIn("take(maxTextLength)", source)
+        self.assertIn('"ManaDialogueState.kt"', prepare)
+
+    def test_cognitive_runtime_checks_host_stop_before_decision_and_tool_execution(self):
+        integration = Path(__file__).resolve().parents[2] / "integration"
+        source = (integration / "ManaCognitiveRuntime.kt").read_text(encoding="utf-8")
+        self.assertIn("private val control: ManaRuntimeControl", source)
+        self.assertGreaterEqual(source.count("control.isStopRequested()"), 3)
+        self.assertIn("Остановлено по команде владельца.", source)
+        self.assertIn("interface ManaRuntimeControl", source)
+
     def run_patch_gate(self, project: Path, patch_text: str, *extra: str):
         patch = project.parent / "proposal.patch"
         patch.write_text(patch_text, encoding="utf-8")
