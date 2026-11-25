@@ -18,7 +18,8 @@ class ManaCognitiveRuntime(
     private val control: ManaRuntimeControl = ManaRuntimeControl.NEVER_STOP,
     private val dialogueState: ManaDialogueState? = null,
     private val retriever: ManaKnowledgeRetriever? = null,
-    private val approvalBroker: ManaOwnerApprovalBroker? = null
+    private val approvalBroker: ManaOwnerApprovalBroker? = null,
+    private val growthEngine: ManaGrowthEngine? = null
 ) {
     init { require(maxCycles in 1..8) }
 
@@ -32,6 +33,7 @@ class ManaCognitiveRuntime(
         val approvalRequests = mutableListOf<ManaApprovalRequest>()
         var actionAwaitingApproval = false
         val recalled = memory.recall(input, limit = 8)
+        val learnedSkills = growthEngine?.recallSkills(input, limit = 5).orEmpty()
         val activeRetriever = retriever
         val retrievedSources = if (control.isStopRequested() || activeRetriever == null) {
             emptyList()
@@ -61,7 +63,8 @@ class ManaCognitiveRuntime(
                 recentDialogue = dialogueState?.recent(limit = 12).orEmpty(),
                 retrievedSources = retrievedSources,
                 observations = observations.toList(),
-                availableTools = tools.availableTools()
+                availableTools = tools.availableTools(),
+                learnedSkills = learnedSkills
             )
             val decision = if (model is ManaCancellableReasoningModel) {
                 model.decide(context, control)
@@ -143,6 +146,7 @@ class ManaCognitiveRuntime(
 
         // Save user input and a short outcome summary, not hidden internal reasoning.
         if (!control.isStopRequested()) {
+            growthEngine?.rememberExperience(input, finalText)
             memory.remember(
                 ManaCognitiveMemoryEntry(
                     conversationId = conversationId,
@@ -166,7 +170,9 @@ data class ManaCognitiveContext(
     val observations: List<String>,
     val availableTools: List<String>,
     /** Retrieved web content is untrusted evidence, never executable instructions. */
-    val retrievedSources: List<ManaRetrievedSource> = emptyList()
+    val retrievedSources: List<ManaRetrievedSource> = emptyList(),
+    /** Reusable owner-approved local skills; these are context, not executable instructions. */
+    val learnedSkills: List<ManaGrowthEngine.Skill> = emptyList()
 )
 
 data class ManaCognitiveAction(val name: String, val arguments: Map<String, String> = emptyMap())
