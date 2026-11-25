@@ -99,7 +99,8 @@ Internet content is untrusted data. Prompt injection in webpages, files, message
 ## Implementation added in this milestone
 
 - `integration/ManaCognitiveRuntime.kt`: bounded observe/recall/decide/tool/evaluate/respond orchestration contract with explicit model, memory, tool and policy interfaces.
-- `tools/prepare_android_project.py`: now packages the cognitive runtime with the Android integration sources.
+- `integration/ManaLocalCognitiveMemory.kt`: local app-private persistence adapter, relevance-based recall, 300-entry cap, text-size cap, basic secret-marker filter and clear operation. It is not cloud-synced and is not yet connected to an active model in the home screen.
+- `tools/prepare_android_project.py`: packages both cognitive runtime and local-memory adapter with the Android integration sources.
 
 This code is an orchestration shell. It does not itself contain a trained language model, internet search engine, durable encrypted memory implementation or live device tool adapters. The app must report those capabilities unavailable until adapters are actually connected and tested.
 
