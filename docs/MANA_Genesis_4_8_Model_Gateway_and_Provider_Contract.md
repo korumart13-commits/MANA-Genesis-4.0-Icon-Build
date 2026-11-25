@@ -108,7 +108,7 @@ These tools request no runtime permission and cannot modify device state. They a
 The Android source tree now includes `ManaOwnerApprovalBroker`, a platform-neutral approval-token primitive for future side-effecting adapters.
 
 - Only actions already classified by `ManaDefaultCognitivePolicy` as `REQUIRES_OWNER_CONFIRMATION` can create an approval request. Denied, unknown, and read-only actions cannot use this path to obtain a token.
-- A request displays the action name and a short human-readable summary, and expires after 60 seconds by default (hard maximum two minutes).
+- A request exposes the exact bounded action arguments alongside the action name and short human-readable summary, so the owner can inspect the recipient, target, content, or setting before confirming. It expires after 60 seconds by default (hard maximum two minutes).
 - The owner-facing UI must call `confirmFromOwnerUi` only from a deliberate confirmation interaction. A model proposal, background job, or network response is not owner confirmation.
 - An issued opaque token is bound to the exact action name and canonical SHA-256 fingerprint of all arguments. Any changed argument, changed action, expired token, missing token, or replay is rejected.
 - Tokens are single-use and removed before the authorization result is returned. The future adapter must consume the token immediately before execution and still check Android runtime permission / platform role.
