@@ -15,7 +15,7 @@ class ManaEngineTest {
     )
 
     @Test
-    fun prefersGptWhenBothProvidersAreAvailable() {
+    fun prefersLocalWhenBothProvidersAreAvailable() {
         var gptCalls = 0
         var localCalls = 0
         val gpt = provider("gpt") { gptCalls++; ManaCognitiveDecision(finalAnswer = "GPT") }
@@ -23,9 +23,9 @@ class ManaEngineTest {
 
         val result = ManaEngine(gpt, local).decide(context(), ManaRuntimeControl.NEVER_STOP)
 
-        assertEquals("GPT", result.finalAnswer)
-        assertEquals(1, gptCalls)
-        assertEquals(0, localCalls)
+        assertEquals("LOCAL", result.finalAnswer)
+        assertEquals(0, gptCalls)
+        assertEquals(1, localCalls)
     }
 
     @Test
@@ -38,6 +38,33 @@ class ManaEngineTest {
 
         assertEquals("LOCAL", result.finalAnswer)
         assertEquals(1, localCalls)
+    }
+
+
+    @Test
+    fun usesCloudOnlyWhenLocalProviderFails() {
+        var gptCalls = 0
+        val local = provider("local") { error("local runtime unavailable") }
+        val gpt = provider("gpt") { gptCalls++; ManaCognitiveDecision(finalAnswer = "CLOUD") }
+
+        val result = ManaEngine(gpt, local).decide(context(), ManaRuntimeControl.NEVER_STOP)
+
+        assertEquals("CLOUD", result.finalAnswer)
+        assertEquals(1, gptCalls)
+    }
+
+    @Test
+    fun canDisableCloudFallbackForStrictOfflineMode() {
+        var gptCalls = 0
+        val local = provider("local") { error("local runtime unavailable") }
+        val gpt = provider("gpt") { gptCalls++; ManaCognitiveDecision(finalAnswer = "CLOUD") }
+
+        val result = ManaEngine(
+            gpt, local, ManaEnginePolicy(preferLocal = true, allowCloudFallback = false)
+        ).decide(context(), ManaRuntimeControl.NEVER_STOP)
+
+        assertTrue(result.finalAnswer.orEmpty().contains("Не удалось получить ответ"))
+        assertEquals(0, gptCalls)
     }
 
     @Test
