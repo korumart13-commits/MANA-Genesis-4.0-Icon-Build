@@ -10,6 +10,32 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 
+def configure_litert_lm(project: Path) -> None:
+    """Pin LiteRT-LM 0.16.1 and its minimum compatible Kotlin compiler in the generated app."""
+    gradle_files = list(project.rglob("*.gradle")) + list(project.rglob("*.gradle.kts")) + list(project.rglob("libs.versions.toml"))
+    gradle_files = [p for p in gradle_files if "build" not in p.parts and ".gradle" not in p.parts[:-1]]
+    changed = 0
+    for path in gradle_files:
+        source = path.read_text(encoding="utf-8")
+        count = source.count("2.0.21")
+        if count:
+            path.write_text(source.replace("2.0.21", "2.2.20"), encoding="utf-8")
+            changed += count
+    if changed == 0:
+        # Do not guess at an unknown Kotlin/Gradle catalog layout.
+        combined = "\\n".join(p.read_text(encoding="utf-8") for p in gradle_files)
+        if "2.2.20" not in combined and "2.3." not in combined and "2.4." not in combined:
+            raise SystemExit("LiteRT-LM requires Kotlin 2.2+; no known Kotlin 2.0.21 version anchor was found. Review the source project's Kotlin plugin before integrating.")
+    app_gradle = project / "app/build.gradle.kts"
+    if not app_gradle.is_file():
+        raise SystemExit(f"App Gradle build file is missing: {app_gradle}")
+    app_source = app_gradle.read_text(encoding="utf-8")
+    dependency = 'implementation("com.google.ai.edge.litertlm:litertlm-android:0.16.1")'
+    if dependency not in app_source:
+        app_source += "\\n\\ndependencies {\\n    " + dependency + "\\n}\\n"
+        app_gradle.write_text(app_source, encoding="utf-8")
+
+
 def replace_once(source: str, old: str, new: str, label: str) -> str:
     count = source.count(old)
     if count == 1:
@@ -108,7 +134,8 @@ def main() -> None:
     target_dir.mkdir(parents=True, exist_ok=True)
     write_gateway_deployment_config(project, os.environ.get("MANA_GATEWAY_ENDPOINT", ""), os.environ.get("MANA_GATEWAY_HOST", ""))
     write_voice_deployment_config(project, os.environ.get("MANA_TTS_ENDPOINT", ""), os.environ.get("MANA_TTS_HOST", ""))
-    for name in ("ManaGenesis.kt", "ManaEngine.kt", "ManaSystemKernel.kt", "ManaCoreKernel.kt", "AndroidSelfDevelopment.kt", "ManaDevelopmentPipeline.kt", "ManaCognitiveRuntime.kt", "ManaLocalCognitiveMemory.kt", "ManaDialogueState.kt", "ManaDefaultCognitivePolicy.kt", "ManaGatewayReasoningModel.kt", "ManaAndroidGatewayCredentialStore.kt", "ManaGatewayChatService.kt", "ManaVoiceGatewayClient.kt", "ManaReadOnlyToolRegistry.kt", "ManaAndroidReadOnlyTools.kt", "ManaOwnerApprovalBroker.kt", "ManaApprovedActionValidation.kt", "ManaAndroidApprovedActionExecutor.kt"):
+    configure_litert_lm(project)
+    for name in ("ManaGenesis.kt", "ManaEngine.kt", "ManaLiteRtLmRuntime.kt", "ManaSystemKernel.kt", "ManaCoreKernel.kt", "AndroidSelfDevelopment.kt", "ManaDevelopmentPipeline.kt", "ManaCognitiveRuntime.kt", "ManaLocalCognitiveMemory.kt", "ManaDialogueState.kt", "ManaDefaultCognitivePolicy.kt", "ManaGatewayReasoningModel.kt", "ManaAndroidGatewayCredentialStore.kt", "ManaGatewayChatService.kt", "ManaVoiceGatewayClient.kt", "ManaReadOnlyToolRegistry.kt", "ManaAndroidReadOnlyTools.kt", "ManaOwnerApprovalBroker.kt", "ManaApprovedActionValidation.kt", "ManaAndroidApprovedActionExecutor.kt"):
         source = integration / name
         if not source.is_file() or source.stat().st_size == 0:
             raise SystemExit(f"Required integration source is missing or empty: {source}")
@@ -328,7 +355,7 @@ def main() -> None:
         manifest_text = replace_once(manifest_text, "</application>", avatar_service + "    </application>", "MANA persistent avatar service")
     manifest.write_text(manifest_text, encoding="utf-8")
 
-    print("Integrated MANA home activity, local self-development, license and Android core tests.")
+    print("Integrated MANA home, Google LiteRT-LM local inference adapter, self-development, license and Android core tests.")
     print("Bundled original MANA GLB avatar and local Three.js renderer." if args.avatar_file else "Avatar bundle not supplied; app will show the fallback surface.")
     print("MANA home is the app entry point and HOME-role candidate; Android still controls default-launcher selection.")
     print("Cloud chat only activates when a real HTTPS gateway has already been configured; no endpoint is fabricated.")
