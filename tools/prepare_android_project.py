@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Integrate the reviewed MANA runtime into an extracted Android project copy."""
+"""Integrate reviewed MANA runtime and first usable home surface into an extracted Android project copy."""
 from __future__ import annotations
 
 import argparse
@@ -41,11 +41,17 @@ def main() -> None:
             raise SystemExit(f"Required integration source is missing or empty: {source}")
         shutil.copy2(source, target_dir / name)
 
+    home_source = integration / "ManaHomeActivity.kt"
+    if not home_source.is_file() or home_source.stat().st_size == 0:
+        raise SystemExit("MANA home activity source is missing or empty.")
+    app_source_dir = project / "app/src/main/java/com/mana/os/app"
+    app_source_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(home_source, app_source_dir / "ManaHomeActivity.kt")
+
     assets = project / "app/src/main/assets"
     assets.mkdir(parents=True, exist_ok=True)
     shutil.copy2(license_file, assets / "manaos-license.txt")
 
-    # Add a real Android/JUnit test source to the extracted build copy.
     test_source = integration / "tests" / "ManaCoreTest.kt"
     if not test_source.is_file() or test_source.stat().st_size == 0:
         raise SystemExit(f"Required Android unit test source is missing or empty: {test_source}")
@@ -66,109 +72,37 @@ def main() -> None:
         )
         core_gradle.write_text(gradle_source, encoding="utf-8")
 
-    activity = project / "app/src/main/java/com/mana/os/app/MainActivity.kt"
-    if not activity.is_file():
-        raise SystemExit(f"Expected MANA dashboard source is missing: {activity}")
-    source = activity.read_text(encoding="utf-8")
-
-    source = replace_once(
-        source,
-        "import com.mana.os.cloud.ManaCloudClient\n",
-        "import com.mana.os.cloud.ManaCloudClient\n"
-        "import com.mana.os.integration.AndroidSelfDevelopment\n"
-        "import com.mana.os.integration.ManaGenesis\n",
-        "dashboard imports",
+    manifest = project / "app/src/main/AndroidManifest.xml"
+    manifest_text = manifest.read_text(encoding="utf-8")
+    old_launcher_filter = """            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+"""
+    manifest_text = replace_once(manifest_text, old_launcher_filter, "", "old app launcher filter")
+    home_activity = """        <activity android:name="com.mana.os.app.ManaHomeActivity" android:exported="true" android:label="MANA">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+"""
+    manifest_text = replace_once(
+        manifest_text,
+        '        <activity android:name="com.mana.os.app.MainActivity" android:exported="true">',
+        home_activity + '        <activity android:name="com.mana.os.app.MainActivity" android:exported="true">',
+        "MANA home activity manifest entry",
     )
+    manifest.write_text(manifest_text, encoding="utf-8")
 
-    source = replace_once(
-        source,
-        '        addButton("Настроить MANA Cloud") { configureCloud() }\n',
-        '        addButton("Настроить MANA Cloud") { configureCloud() }\n'
-        '        addButton("Саморазвитие MANA") { showSelfDevelopment() }\n',
-        "dashboard button",
-    )
-
-    method = r'''    private fun showSelfDevelopment() {
-        val engine = AndroidSelfDevelopment(this)
-        base("MANA • Саморазвитие", "Сбор идей, анализ и планирование улучшений")
-        addText("Саморазвитие: ${if (engine.isSelfDevelopmentEnabled()) "ВКЛЮЧЕНО" else "ОТКЛЮЧЕНО"}")
-        addText("Идей собрано: ${engine.ideas().size}. Предложений: ${engine.proposals().size}.")
-        addText("Источники: владелец, интернет, игры, приложения, баги, предупреждения безопасности и диагностика.")
-        addText("Идеи сохраняются локально и анализируются. Автоматическое изменение исходников и установка обновлений не включены.")
-        engine.proposals().takeLast(8).asReversed().forEach { proposal ->
-            addText("• ${proposal.title}\nРиск: ${proposal.risk}; тип: ${proposal.scope}; подтверждение: ${if (proposal.requiresUserApproval) "нужно" else "не требуется для подготовки к тестам"}.")
-        }
-        addButton("Добавить идею") {
-            val labels = arrayOf("Моё предложение", "Интернет", "Игра", "Приложение", "Обнаруженный баг", "Предупреждение безопасности", "Изученное знание", "Диагностика устройства", "Другой источник")
-            val sources = arrayOf(
-                ManaGenesis.IdeaSource.OWNER, ManaGenesis.IdeaSource.INTERNET,
-                ManaGenesis.IdeaSource.GAME, ManaGenesis.IdeaSource.APP,
-                ManaGenesis.IdeaSource.BUG_REPORT, ManaGenesis.IdeaSource.SECURITY_ALERT,
-                ManaGenesis.IdeaSource.LEARNED_KNOWLEDGE, ManaGenesis.IdeaSource.DEVICE_DIAGNOSTIC,
-                ManaGenesis.IdeaSource.OTHER
-            )
-            AlertDialog.Builder(this).setTitle("Откуда идея?")
-                .setItems(labels) { _, which ->
-                    val input = EditText(this).apply {
-                        hint = "Опиши идею, ошибку или найденную возможность"
-                        minLines = 3
-                        setSingleLine(false)
-                    }
-                    AlertDialog.Builder(this).setTitle("Новая идея").setView(input)
-                        .setNegativeButton("Отмена", null)
-                        .setPositiveButton("Сохранить") { _, _ ->
-                            runCatching { engine.collect(sources[which], input.text.toString()) }
-                                .onSuccess { Toast.makeText(this, "Идея сохранена локально", Toast.LENGTH_SHORT).show() }
-                                .onFailure { Toast.makeText(this, it.message ?: "Не удалось сохранить", Toast.LENGTH_LONG).show() }
-                            showSelfDevelopment()
-                        }.show()
-                }.show()
-        }
-        addButton("Проанализировать собранные идеи") {
-            if (!engine.isSelfDevelopmentEnabled()) {
-                Toast.makeText(this, "Саморазвитие отключено владельцем", Toast.LENGTH_LONG).show()
-            } else {
-                val count = engine.analyze().size
-                Toast.makeText(this, "Анализ завершён. Предложений: $count", Toast.LENGTH_SHORT).show()
-            }
-            showSelfDevelopment()
-        }
-        addButton(if (engine.isSelfDevelopmentEnabled()) "Отключить саморазвитие" else "Включить саморазвитие") {
-            engine.setSelfDevelopmentEnabled(!engine.isSelfDevelopmentEnabled())
-            showSelfDevelopment()
-        }
-        addButton("Назад") { showDashboard() }
-    }
-
-'''
-    source = replace_once(
-        source,
-        "    private fun downloadFromUrl() {\n",
-        method + "    private fun downloadFromUrl() {\n",
-        "self-development screen method",
-    )
-
-    # Repair a known malformed multiline welcome literal in the extracted source copy.
-    broken = 'base("MANA", "Первоначальная настройка\nЯ стану твоим главным интерфейсом, сохраняя Android в качестве системной основы.")'
-    fixed = 'base("MANA", "Первоначальная настройка. Я стану твоим главным интерфейсом, сохраняя Android в качестве системной основы.")'
-    if broken in source:
-        source = source.replace(broken, fixed, 1)
-
-    for marker in (
-        "import com.mana.os.integration.AndroidSelfDevelopment",
-        'addButton("Саморазвитие MANA")',
-        "private fun showSelfDevelopment()",
-        fixed,
-    ):
-        # The welcome literal may already be valid in a future source revision.
-        if marker == fixed and fixed not in source and broken not in source:
-            continue
-        if marker not in source:
-            raise SystemExit(f"Post-edit verification failed: missing {marker}")
-
-    activity.write_text(source, encoding="utf-8")
-    print("Integrated three MANA Kotlin components, dashboard, project license and Android core tests.")
-    print("Verified Android source anchors. Changes apply only to the temporary CI source copy.")
+    print("Integrated MANA home activity, local self-development, license and Android core tests.")
+    print("MANA home is the app entry point and HOME-role candidate; Android still controls default-launcher selection.")
+    print("Cloud chat only activates when a real HTTPS gateway has already been configured; no endpoint is fabricated.")
 
 
 if __name__ == "__main__":
