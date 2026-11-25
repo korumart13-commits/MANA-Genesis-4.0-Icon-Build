@@ -9,9 +9,11 @@ class ManaDreamConsolidationTest {
         val forgottenMemories = mutableListOf<String>()
         val forgottenCopies = mutableListOf<String>()
         val removedIndexes = mutableListOf<String>()
+        val recoveredUserFiles = mutableListOf<String>()
         override fun forgetMemoryEntry(id: String) { forgottenMemories += id }
         override fun forgetDerivedFileCopy(id: String) { forgottenCopies += id }
         override fun removeSearchIndex(id: String) { removedIndexes += id }
+        override fun moveUserOriginalToRecovery(id: String) { recoveredUserFiles += id }
     }
 
     private val now = 40L * 86_400_000L
@@ -56,6 +58,30 @@ class ManaDreamConsolidationTest {
         assertTrue(store.forgottenMemories.isEmpty())
         assertTrue(store.forgottenCopies.isEmpty())
         assertTrue(store.removedIndexes.isEmpty())
+    }
+
+    @Test
+    fun ownerApprovedLowValueFileCanOnlyMoveToRecoverableAreaWhenEnabled() {
+        val store = RecordingStore()
+        val candidate = lowValue("approved-file", ManaDreamItemKind.USER_ORIGINAL_FILE)
+            .copy(ownerApprovedForCleanup = true)
+        val result = ManaDreamConsolidation(store, allowUserFileCleanup = true)
+            .consolidate(listOf(candidate), now).single()
+
+        assertEquals(ManaDreamDecision.MOVE_USER_FILE_TO_RECOVERY, result.decision)
+        assertEquals(listOf("approved-file"), store.recoveredUserFiles)
+    }
+
+    @Test
+    fun userFileCleanupIsDisabledByDefault() {
+        val store = RecordingStore()
+        val candidate = lowValue("default-safe", ManaDreamItemKind.USER_ORIGINAL_FILE)
+            .copy(ownerApprovedForCleanup = true)
+        val result = ManaDreamConsolidation(store)
+            .consolidate(listOf(candidate), now).single()
+
+        assertEquals(ManaDreamDecision.OWNER_REVIEW, result.decision)
+        assertTrue(store.recoveredUserFiles.isEmpty())
     }
 
     @Test
