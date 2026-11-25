@@ -1,5 +1,6 @@
 package com.mana.os.integration
 
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 
@@ -7,8 +8,8 @@ import android.content.Intent
 data class ManaApprovedActionResult(val success: Boolean, val message: String)
 
 /**
- * Narrow side-effect adapter: launch a user-visible app or open one fixed Android settings page,
- * only after consuming a matching one-time owner token.
+ * Narrow side-effect adapter: launch a user-visible app, open a fixed Android settings page,
+ * or apply one of two fixed Do Not Disturb filters after exact one-time owner approval.
  */
 class ManaAndroidApprovedActionExecutor(
     context: Context,
@@ -18,8 +19,8 @@ class ManaAndroidApprovedActionExecutor(
 
     fun previewLaunchLabel(request: ManaApprovalRequest): String? {
         val action = ManaCognitiveAction(request.actionName, request.arguments)
-        return when {
-            request.actionName == "apps.launch" -> {
+        return when (request.actionName) {
+            "apps.launch" -> {
                 val packageName = ManaApprovedActionValidation.launchPackage(action) ?: return null
                 runCatching {
                     val launchIntent = app.packageManager.getLaunchIntentForPackage(packageName) ?: return null
@@ -29,8 +30,8 @@ class ManaAndroidApprovedActionExecutor(
                     ).toString()
                 }.getOrNull()
             }
-            request.actionName == "settings.open_page" ->
-                ManaApprovedActionValidation.settingsPage(action)?.label
+            "settings.open_page" -> ManaApprovedActionValidation.settingsPage(action)?.label
+            "device.set_dnd_filter" -> ManaApprovedActionValidation.dndFilter(action)?.label
             else -> null
         }
     }
@@ -42,17 +43,20 @@ class ManaAndroidApprovedActionExecutor(
         val action = ManaCognitiveAction(request.actionName, request.arguments)
 
         val targetLabel: String
-        val launchIntent: Intent
+        var launchIntent: Intent? = null
+        var dndManager: NotificationManager? = null
+        var dndFilter: ManaDndFilter? = null
+
         when (request.actionName) {
             "apps.launch" -> {
                 val packageName = ManaApprovedActionValidation.launchPackage(action)
                     ?: return reject(requestId, "Некорректная цель запуска. Ничего не изменено.")
-                launchIntent = runCatching {
-                    app.packageManager.getLaunchIntentForPackage(packageName)
-                }.getOrNull() ?: return reject(requestId, "Приложение больше недоступно.")
-                if (launchIntent.component?.packageName != packageName) {
+                val resolvedIntent = app.packageManager.getLaunchIntentForPackage(packageName)
+                    ?: return reject(requestId, "Приложение больше недоступно.")
+                if (resolvedIntent.component?.packageName != packageName) {
                     return reject(requestId, "Android не подтвердил цель запуска.")
                 }
+                launchIntent = resolvedIntent
                 targetLabel = runCatching {
                     app.packageManager.getApplicationLabel(app.packageManager.getApplicationInfo(packageName, 0)).toString()
                 }.getOrDefault(packageName)
@@ -60,11 +64,22 @@ class ManaAndroidApprovedActionExecutor(
             "settings.open_page" -> {
                 val page = ManaApprovedActionValidation.settingsPage(action)
                     ?: return reject(requestId, "Эта страница настроек не входит в разрешённый список.")
-                launchIntent = Intent(page.androidAction)
-                if (launchIntent.resolveActivity(app.packageManager) == null) {
+                val resolvedIntent = Intent(page.androidAction)
+                if (resolvedIntent.resolveActivity(app.packageManager) == null) {
                     return reject(requestId, "Эта страница настроек недоступна на устройстве.")
                 }
+                launchIntent = resolvedIntent
                 targetLabel = page.label
+            }
+            "device.set_dnd_filter" -> {
+                dndFilter = ManaApprovedActionValidation.dndFilter(action)
+                    ?: return reject(requestId, "Недопустимый режим «Не беспокоить».")
+                dndManager = app.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                    ?: return reject(requestId, "Управление уведомлениями недоступно.")
+                if (dndManager?.isNotificationPolicyAccessGranted != true) {
+                    return reject(requestId, "Android ещё не предоставил MANA доступ к режиму «Не беспокоить». Сначала открой раздел доступа в настройках Android.")
+                }
+                targetLabel = dndFilter!!.label
             }
             else -> return reject(requestId, "Этот тип действия пока не поддерживается.")
         }
@@ -72,19 +87,29 @@ class ManaAndroidApprovedActionExecutor(
         val token = broker.confirmFromOwnerUi(requestId, true)
             ?: return ManaApprovedActionResult(false, "Запрос истёк или уже обработан.")
         if (!broker.consumeForExactAction(token, action)) {
-            return ManaApprovedActionResult(false, "Разрешение не прошло проверку точного действия. Ничего не открыто.")
+            return ManaApprovedActionResult(false, "Разрешение не прошло проверку точного действия. Ничего не изменено.")
         }
+
         return try {
-            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            app.startActivity(launchIntent)
-            val message = if (action.name == "apps.launch") {
-                "Команда запуска приложения «$targetLabel» передана Android."
+            if (dndFilter != null) {
+                dndManager!!.setInterruptionFilter(dndFilter!!.androidFilter)
+                ManaApprovedActionResult(
+                    true,
+                    "Режим «Не беспокоить» установлен: $targetLabel. Он действует, пока ты не изменишь режим вручную."
+                )
             } else {
-                "Открытие раздела «$targetLabel» передано Android. Изменения параметров не выполнялись."
+                val intent = launchIntent ?: return ManaApprovedActionResult(false, "Цель действия недоступна.")
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                app.startActivity(intent)
+                val message = if (action.name == "apps.launch") {
+                    "Команда запуска приложения «$targetLabel» передана Android."
+                } else {
+                    "Открытие раздела «$targetLabel» передано Android. Изменения параметров не выполнялись."
+                }
+                ManaApprovedActionResult(true, message)
             }
-            ManaApprovedActionResult(true, message)
         } catch (_: Exception) {
-            ManaApprovedActionResult(false, "Android не смог открыть «$targetLabel».")
+            ManaApprovedActionResult(false, "Android не смог выполнить действие: «$targetLabel».")
         }
     }
 
