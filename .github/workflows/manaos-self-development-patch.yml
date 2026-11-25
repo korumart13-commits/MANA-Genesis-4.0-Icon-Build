@@ -102,6 +102,16 @@ jobs:
             --scope "$CHANGE_SCOPE" \
             --owner-approval "$OWNER_APPROVAL"
 
+      - name: Run read-only MANA Code Intelligence analysis
+        shell: bash
+        env:
+          PROJECT_DIR: ${{ steps.project.outputs.dir }}
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/tools/mana_code_intelligence.py" \
+            --source "$PROJECT_DIR" \
+            --out "$GITHUB_WORKSPACE/output/code-intelligence"
+
       - name: Run project tests and build debug APK
         working-directory: ${{ steps.project.outputs.dir }}
         shell: bash
