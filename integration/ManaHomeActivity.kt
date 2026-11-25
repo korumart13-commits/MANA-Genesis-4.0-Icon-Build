@@ -205,7 +205,7 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
     private fun sendMessage() {
         val text = message.text.toString().trim()
         if (text.isEmpty()) return
-        if (gatewayChat.isConfigured() || gatewayChat.canRespondLocally()) {
+        if (gatewayChat.isConfigured() || gatewayChat.canStartLocalSetup()) {
             chatLog.text = "Ты: $text\n\nМана: " + if (gatewayChat.isConfigured()) "подключаю интеллект MANA…" else "запускаю локальную модель на телефоне…"
             message.setText("")
             (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
