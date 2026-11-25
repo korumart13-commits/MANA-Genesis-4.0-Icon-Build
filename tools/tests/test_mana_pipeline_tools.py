@@ -47,6 +47,7 @@ class ManaToolTests(unittest.TestCase):
         home = (integration / "ManaHomeActivity.kt").read_text(encoding="utf-8")
         self.assertIn('actionButton("Память Маны") { showMemory() }', home)
         self.assertIn("memory.clear()", home)
+        self.assertIn("dialogueState.clear()", home)
         self.assertIn("Очистить локальную память?", home)
         self.assertIn("private fun recordConversation(userText: String, assistantText: String)", home)
         self.assertIn("dialogueState.add(", home)
