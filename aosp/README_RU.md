@@ -8,6 +8,8 @@
 
 ## Что добавлено для перехода к ОС
 
+Требования к сохранению совместимости приложений Android 16, APK/DEX, Google Play и лицензированию GMS описаны в [ANDROID_16_COMPATIBILITY_AND_GOOGLE_ECOSYSTEM_RU_EN.md](ANDROID_16_COMPATIBILITY_AND_GOOGLE_ECOSYSTEM_RU_EN.md). Этот документ использует официальные материалы Android и отделяет AOSP от закрытых компонентов Google.
+
 Каталог aosp/ хранит продуктовую спецификацию, точку подключения MANA в AOSP и аудит device bring-up для realme RMX5566. Product makefile подключает пакет MANA только если в конкретной сборке AOSP действительно определён Soong-модуль ManaHome.
 
 ## Почему прошивка RMX5566 пока не является готовым артефактом
