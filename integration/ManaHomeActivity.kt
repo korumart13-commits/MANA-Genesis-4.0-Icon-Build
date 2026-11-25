@@ -113,6 +113,8 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
             startActivity(Intent(this, ManaDiaryActivity::class.java))
         }
         content.addView(diaryButton, marginTop(8))
+        val memoryButton = actionButton("Память Маны") { showMemory() }
+        content.addView(memoryButton, marginTop(8))
         val settingsButton = actionButton("Настройки и разрешения Android") {
             startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                 android.net.Uri.parse("package:$packageName")))
@@ -237,6 +239,35 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
         AlertDialog.Builder(this).setTitle("Приложения телефона").setItems(names) { _, which ->
             pm.getLaunchIntentForPackage(apps[which].activityInfo.packageName)?.let { startActivity(it) }
         }.setNegativeButton("Закрыть", null).show()
+    }
+
+    private fun showMemory() {
+        val memory = com.mana.os.integration.ManaLocalCognitiveMemory(this)
+        val entries = memory.recentEntries(20)
+        val summary = if (entries.isEmpty()) {
+            "Локальная память пока пуста."
+        } else {
+            entries.joinToString("\\n\\n") { entry ->
+                val date = java.text.DateFormat.getDateTimeInstance().format(java.util.Date(entry.timestampMillis))
+                "[$date] ${entry.text.take(350)}"
+            }
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Память Маны · ${memory.count()} записей")
+            .setMessage(summary)
+            .setPositiveButton("Очистить память") { _, _ ->
+                AlertDialog.Builder(this)
+                    .setTitle("Очистить локальную память?")
+                    .setMessage("Все сохранённые записи памяти MANA на этом телефоне будут удалены. Это действие нельзя отменить.")
+                    .setPositiveButton("Очистить") { _, _ ->
+                        memory.clear()
+                        toast("Локальная память очищена.")
+                    }
+                    .setNegativeButton("Отмена", null)
+                    .show()
+            }
+            .setNegativeButton("Закрыть", null)
+            .show()
     }
 
     private fun showSelfDevelopment() {
