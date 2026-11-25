@@ -241,6 +241,39 @@ class ManaToolTests(unittest.TestCase):
         self.assertIn("pendingApprovalRequests()", service)
         self.assertIn("ничего не изменено", runtime)
 
+    def test_first_approved_app_launch_is_exact_and_confirmation_gated(self):
+        integration = Path(__file__).resolve().parents[2] / "integration"
+        policy = (integration / "ManaDefaultCognitivePolicy.kt").read_text(encoding="utf-8")
+        validation = (integration / "ManaApprovedActionValidation.kt").read_text(encoding="utf-8")
+        executor = (integration / "ManaAndroidApprovedActionExecutor.kt").read_text(encoding="utf-8")
+        service = (integration / "ManaGatewayChatService.kt").read_text(encoding="utf-8")
+        home = (integration / "ManaHomeActivity.kt").read_text(encoding="utf-8")
+        prepare = (TOOLS / "prepare_android_project.py").read_text(encoding="utf-8")
+        self.assertIn('"apps.launch"', policy)
+        self.assertIn('action.arguments.keys != setOf("package_name")', validation)
+        self.assertIn('broker.consumeForExactAction(token, action)', executor)
+        self.assertLess(executor.index('broker.consumeForExactAction(token, action)'), executor.index('app.startActivity(launchIntent)'))
+        self.assertIn('confirmAndLaunch(requestId)', service)
+        self.assertIn('previewLaunchLabel(request)', service)
+        self.assertIn('setPositiveButton(if (supportedLaunch) "Подтвердить запуск"', home)
+        self.assertIn('Приложение, найденное Android', home)
+        self.assertIn('"ManaApprovedActionValidation.kt"', prepare)
+        self.assertIn('"ManaAndroidApprovedActionExecutor.kt"', prepare)
+        self.assertIn('launcher_visibility', prepare)
+        self.assertIn('ManaApprovedActionValidationTest.kt', prepare)
+
+    def test_app_search_is_narrow_and_never_enumerates_full_inventory(self):
+        integration = Path(__file__).resolve().parents[2] / "integration"
+        source = (integration / "ManaAndroidReadOnlyTools.kt").read_text(encoding="utf-8")
+        policy = (integration / "ManaDefaultCognitivePolicy.kt").read_text(encoding="utf-8")
+        registry = (integration / "ManaReadOnlyToolRegistry.kt").read_text(encoding="utf-8")
+        self.assertIn('name = "apps.find_launchable"', source)
+        self.assertIn('.filter { (_, label) -> label.contains(query, ignoreCase = true) }', source)
+        self.assertIn('.take(5)', source)
+        self.assertIn('"apps.find_launchable"', policy)
+        self.assertIn('"apps.find_launchable"', registry)
+        self.assertNotIn('QUERY_ALL_PACKAGES', source)
+
     def test_gateway_deployment_config_is_optional_and_pinned(self):
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp)
