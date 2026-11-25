@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - mana-foundation-audit
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
@@ -53,7 +50,8 @@ jobs:
             tools/mana_code_intelligence.py \
             tools/mana_ai_code_author.py \
             tools/mana_patch_gate.py \
-            tools/mana_build_quality_gate.py
+            tools/mana_build_quality_gate.py \
+            tools/prepare_android_project.py
 
       - name: Run Python regression tests
         shell: bash
