@@ -350,23 +350,36 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
         fun showAt(index: Int) {
             if (index >= requests.size || isFinishing || isDestroyed) return
             val request = requests[index]
+            val launchLabel = gatewayChat.previewApproval(request)
+            val supportedLaunch = request.actionName == "apps.launch" && launchLabel != null
             val details = buildString {
                 append(request.summary)
                 append("\n\nДействие: ").append(request.actionName)
-                append("\n\nПараметры:")
-                request.arguments.forEach { (key, value) ->
-                    append("\n• ").append(key).append(": ").append(value)
+                if (supportedLaunch) {
+                    append("\n\nПриложение, найденное Android: ").append(launchLabel)
+                    append("\nПакет: ").append(request.arguments["package_name"])
+                    append("\n\nПосле подтверждения Android получит команду открыть это приложение.")
+                } else {
+                    append("\n\nПараметры:")
+                    request.arguments.forEach { (key, value) ->
+                        append("\n• ").append(key).append(": ").append(value)
+                    }
+                    append("\n\nИсполнитель этого действия ещё не подключён. Оно не будет выполнено.")
                 }
                 val seconds = ((request.expiresAtMillis - System.currentTimeMillis()).coerceAtLeast(0L) / 1000L)
                 append("\n\nЗапрос действует ещё примерно ").append(seconds).append(" сек.")
-                append("\n\nВажно: исполнитель этой функции пока не подключён. Даже после одобрения действие НЕ будет выполнено.")
             }
             AlertDialog.Builder(this)
                 .setTitle("Запрос разрешения MANA")
                 .setMessage(details)
-                .setPositiveButton("Одобрить запрос") { _, _ ->
-                    val recorded = gatewayChat.confirmApproval(request.requestId)
-                    toast(if (recorded) "Одобрение записано. Действие не выполнено: исполнитель ещё не подключён." else "Запрос истёк или уже обработан.")
+                .setPositiveButton(if (supportedLaunch) "Подтвердить запуск" else "Закрыть без выполнения") { _, _ ->
+                    if (supportedLaunch) {
+                        val result = gatewayChat.confirmApproval(request.requestId)
+                        toast(result.message)
+                    } else {
+                        gatewayChat.denyApproval(request.requestId)
+                        toast("Действие пока недоступно. Ничего не изменено.")
+                    }
                     showAt(index + 1)
                 }
                 .setNegativeButton("Отклонить") { _, _ ->
