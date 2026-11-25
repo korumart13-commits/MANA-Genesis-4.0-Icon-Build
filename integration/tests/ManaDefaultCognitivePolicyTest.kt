@@ -16,6 +16,7 @@ class ManaDefaultCognitivePolicyTest {
         assertEquals(ManaActionVerdict.REQUIRES_OWNER_CONFIRMATION, policy.check(ManaCognitiveAction("apps.launch")))
         assertEquals(ManaActionVerdict.REQUIRES_OWNER_CONFIRMATION, policy.check(ManaCognitiveAction("settings.open_page")))
         assertEquals(ManaActionVerdict.REQUIRES_OWNER_CONFIRMATION, policy.check(ManaCognitiveAction("device.set_dnd_filter")))
+        assertEquals(ManaActionVerdict.REQUIRES_OWNER_CONFIRMATION, policy.check(ManaCognitiveAction("device.set_audio_volume")))
     }
 
     @Test
