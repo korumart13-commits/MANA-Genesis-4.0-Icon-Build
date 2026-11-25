@@ -143,7 +143,7 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
             startActivity(Intent(this, ManaLifeManagerActivity::class.java))
         }
         content.addView(lifeManagerButton, marginTop(8))
-        val modelButton = actionButton("Установить локальный ИИ-движок") { chooseLocalModel() }
+        val modelButton = actionButton("Подготовить встроенный локальный ИИ · 347 МБ") {\n            status.text = "MANA загружает и проверяет локальную модель Qwen3…";\n            gatewayChat.prepareLocalModel { success, detail ->\n                runOnUiThread { status.text = detail; toast(detail) }\n            }\n        }
         content.addView(modelButton, marginTop(8))
         val memoryButton = actionButton("Память Маны") { showMemory() }
         content.addView(memoryButton, marginTop(8))
