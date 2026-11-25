@@ -31,7 +31,7 @@ Integration sequence:
 5. Add Android streaming/download playback with cancellation, cache limits, and system-TTS fallback.
 6. Add latency, Russian pronunciation, emotional consistency, and privacy tests.
 
-Current APK TTS is Android's installed Russian TTS voice. It is not yet a dedicated MANA voice model. Do not claim the dedicated voice is connected until the synthesis endpoint and Android playback adapter pass end-to-end tests.
+The Android integration now has a separate HTTPS audio client and MediaPlayer playback path. It activates only when trusted build variables `MANA_TTS_ENDPOINT` / `MANA_TTS_HOST` are set and an owner-approved device token exists in Android Keystore; otherwise it falls back to Android's installed Russian TTS voice. The end-to-end path is not yet verified against a deployed model server.
 
 ## Original 3D avatar
 
