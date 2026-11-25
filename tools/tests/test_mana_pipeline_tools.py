@@ -148,6 +148,18 @@ class ManaToolTests(unittest.TestCase):
         self.assertIn("fun recent(limit: Int = 8)", dialogue)
         self.assertIn('"ManaDialogueState.kt"', prepare)
 
+    def test_default_cognitive_policy_is_packaged_and_conservative(self):
+        integration = Path(__file__).resolve().parents[2] / "integration"
+        policy = (integration / "ManaDefaultCognitivePolicy.kt").read_text(encoding="utf-8")
+        policy_test = (integration / "tests" / "ManaDefaultCognitivePolicyTest.kt").read_text(encoding="utf-8")
+        prepare = (TOOLS / "prepare_android_project.py").read_text(encoding="utf-8")
+        self.assertIn('"ManaDefaultCognitivePolicy.kt"', prepare)
+        self.assertIn('ManaDefaultCognitivePolicyTest.kt', prepare)
+        self.assertIn('if (name in READ_ONLY_TOOLS) return ManaActionVerdict.ALLOW', policy)
+        self.assertIn('if (name in OWNER_CONFIRMATION_TOOLS)', policy)
+        self.assertIn('return ManaActionVerdict.DENY', policy)
+        self.assertIn('unknownAndPrivilegedActionsAreDenied', policy_test)
+
     def run_patch_gate(self, project: Path, patch_text: str, *extra: str):
         patch = project.parent / "proposal.patch"
         patch.write_text(patch_text, encoding="utf-8")
