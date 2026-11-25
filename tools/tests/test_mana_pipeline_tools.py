@@ -179,6 +179,20 @@ class ManaToolTests(unittest.TestCase):
         self.assertIn('malformedDeviceTokenIsRejectedBeforeNetwork', gateway_test)
         self.assertIn('[A-Za-z0-9._~+/=-]{16,4096}', adapter)
 
+    def test_read_only_tool_registry_is_allowlisted_and_packaged(self):
+        integration = Path(__file__).resolve().parents[2] / "integration"
+        source = (integration / "ManaReadOnlyToolRegistry.kt").read_text(encoding="utf-8")
+        test_source = (integration / "tests" / "ManaReadOnlyToolRegistryTest.kt").read_text(encoding="utf-8")
+        prepare = (TOOLS / "prepare_android_project.py").read_text(encoding="utf-8")
+        self.assertIn('"ManaReadOnlyToolRegistry.kt"', prepare)
+        self.assertIn('ManaReadOnlyToolRegistryTest.kt', prepare)
+        self.assertIn('ALLOWED_READ_ONLY_TOOLS', source)
+        self.assertIn('action.name]', source)
+        self.assertIn('action.arguments.keys.any', source)
+        self.assertIn('control.isStopRequested()', source)
+        self.assertIn('sideEffectingToolCannotBeRegistered', test_source)
+        self.assertIn('unknownArgumentsAndMissingRequiredArgumentsAreRejectedBeforeHandler', test_source)
+
     def test_gateway_deployment_config_is_optional_and_pinned(self):
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp)
