@@ -102,7 +102,14 @@ def main() -> None:
     endpoint = os.environ.get("MANA_AI_API_URL", "https://api.openai.com/v1/chat/completions").strip()
     model = os.environ.get("MANA_AI_MODEL", "").strip()
     if not model:
-        raise SystemExit("MANA_AI_MODEL must be configured as a repository variable.")
+        result_path.write_text(
+            "# MANA AI Code Author\\n\\n"
+            "- Status: not generated — MANA_AI_MODEL is not configured.\\n"
+            "- A bounded prompt was saved as MANA_AI_PATCH_REQUEST.md.\\n"
+            "- No patch was created or applied.\\n",
+            encoding="utf-8")
+        print("No model configured; emitted review prompt only.")
+        return
     payload = {
         "model": model,
         "temperature": 0.1,
