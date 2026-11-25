@@ -169,10 +169,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Configure Gradle and validate wrapper
-        working-directory: ${{ steps.project.outputs.dir }}
-        uses: gradle/actions/setup-gradle@v6
-
       - name: Run Android unit tests and assemble debug APK
         working-directory: ${{ steps.project.outputs.dir }}
         shell: bash
