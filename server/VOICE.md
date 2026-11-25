@@ -26,6 +26,4 @@ as the gateway until a per-device enrollment system is implemented.
 - `POST /v1/mana/voice/synthesize`: JSON body `{"text":"..." }`, bearer auth,
   returns bounded PCM WAV with `Cache-Control: no-store`.
 
-This is a separate service component. The Android APK does not yet call this
-endpoint; its current speech output remains Android TextToSpeech. An Android
-audio client, cancellation, caching policy and lip-sync hookup are still needed.
+The Android integration now contains an optional HTTPS audio client. When the trusted build variables `MANA_TTS_ENDPOINT` and `MANA_TTS_HOST` are configured and a device token has been provisioned through an owner-approved enrollment flow, the app requests this service, plays the returned WAV, and drives the avatar mouth animation. If any of those prerequisites is absent or the service fails, it falls back to Android TextToSpeech. The app does not silently configure a server or invent a token.
