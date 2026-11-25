@@ -42,6 +42,17 @@ class ManaReadOnlyToolRegistryTest {
     }
 
     @Test
+    fun requestedAppSearchIsAnExplicitReadOnlyCapability() {
+        val registry = ManaReadOnlyToolRegistry(listOf(
+            ManaReadOnlyToolDefinition("apps.find_launchable", setOf("query"), setOf("query")) { args, _ ->
+                ManaCognitiveToolResult(true, "Только совпадения для ${args["query"]}.")
+            }
+        ))
+        assertTrue(registry.availableTools().contains("apps.find_launchable"))
+        assertTrue(registry.execute(ManaCognitiveAction("apps.find_launchable", mapOf("query" to "Книги"))).success)
+    }
+
+    @Test
     fun controlCharactersAndOversizedArgumentsAreRejected() {
         var calls = 0
         val registry = ManaReadOnlyToolRegistry(listOf(
