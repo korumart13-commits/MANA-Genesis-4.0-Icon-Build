@@ -309,7 +309,6 @@ def main() -> None:
 
     manifest = project / "app/src/main/AndroidManifest.xml"
     manifest_text = manifest.read_text(encoding="utf-8")
-'
     for permission in ("android.permission.SYSTEM_ALERT_WINDOW", "android.permission.FOREGROUND_SERVICE", "android.permission.FOREGROUND_SERVICE_SPECIAL_USE", "android.permission.POST_NOTIFICATIONS"):
         if permission not in manifest_text:
             permission_line = '    <uses-permission android:name="' + permission + '" />\n'
