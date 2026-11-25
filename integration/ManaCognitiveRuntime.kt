@@ -29,14 +29,15 @@ class ManaCognitiveRuntime(
         val observations = mutableListOf<String>()
         val toolEvents = mutableListOf<ManaToolEvent>()
         val recalled = memory.recall(input, limit = 8)
-        val retrievedSources = if (control.isStopRequested() || retriever == null) {
+        val activeRetriever = retriever
+        val retrievedSources = if (control.isStopRequested() || activeRetriever == null) {
             emptyList()
         } else {
             runCatching {
-                if (retriever is ManaCancellableKnowledgeRetriever) {
-                    retriever.retrieve(input, limit = 5, control = control)
+                if (activeRetriever is ManaCancellableKnowledgeRetriever) {
+                    activeRetriever.retrieve(input, limit = 5, control = control)
                 } else {
-                    retriever.retrieve(input, limit = 5)
+                    activeRetriever.retrieve(input, limit = 5)
                 }
             }.getOrDefault(emptyList()).take(5)
         }
