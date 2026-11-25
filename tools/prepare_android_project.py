@@ -80,6 +80,13 @@ def main() -> None:
             </intent-filter>
 """
     manifest_text = replace_once(manifest_text, old_launcher_filter, "", "old app launcher filter")
+    old_home_filter = """            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+"""
+    manifest_text = replace_once(manifest_text, old_home_filter, "", "old app HOME filter")
     home_activity = """        <activity android:name="com.mana.os.app.ManaHomeActivity" android:exported="true" android:label="MANA">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
