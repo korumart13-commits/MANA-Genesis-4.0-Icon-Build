@@ -72,7 +72,7 @@ def main() -> None:
     target_dir = project / "app/src/main/java/com/mana/os/integration"
     target_dir.mkdir(parents=True, exist_ok=True)
     write_gateway_deployment_config(project, os.environ.get("MANA_GATEWAY_ENDPOINT", ""), os.environ.get("MANA_GATEWAY_HOST", ""))
-    for name in ("ManaGenesis.kt", "AndroidSelfDevelopment.kt", "ManaDevelopmentPipeline.kt", "ManaCognitiveRuntime.kt", "ManaLocalCognitiveMemory.kt", "ManaDialogueState.kt", "ManaDefaultCognitivePolicy.kt", "ManaGatewayReasoningModel.kt", "ManaAndroidGatewayCredentialStore.kt", "ManaGatewayChatService.kt", "ManaReadOnlyToolRegistry.kt", "ManaAndroidReadOnlyTools.kt"):
+    for name in ("ManaGenesis.kt", "AndroidSelfDevelopment.kt", "ManaDevelopmentPipeline.kt", "ManaCognitiveRuntime.kt", "ManaLocalCognitiveMemory.kt", "ManaDialogueState.kt", "ManaDefaultCognitivePolicy.kt", "ManaGatewayReasoningModel.kt", "ManaAndroidGatewayCredentialStore.kt", "ManaGatewayChatService.kt", "ManaReadOnlyToolRegistry.kt", "ManaAndroidReadOnlyTools.kt", "ManaOwnerApprovalBroker.kt"):
         source = integration / name
         if not source.is_file() or source.stat().st_size == 0:
             raise SystemExit(f"Required integration source is missing or empty: {source}")
@@ -117,7 +117,7 @@ def main() -> None:
         raise SystemExit(f"Required read-only tool registry test source is missing or empty: {registry_test_source}")
     shutil.copy2(registry_test_source, app_test_target.parent / "ManaReadOnlyToolRegistryTest.kt")
 
-    gateway_test_source = integration / "tests" / "ManaGatewayAdapterTest.kt"
+    approval_test_source = integration / "tests" / "ManaOwnerApprovalBrokerTest.kt"\n    if not approval_test_source.is_file() or approval_test_source.stat().st_size == 0:\n        raise SystemExit(f"Required owner approval broker test source is missing or empty: {approval_test_source}")\n    shutil.copy2(approval_test_source, app_test_target.parent / "ManaOwnerApprovalBrokerTest.kt")\n\n    gateway_test_source = integration / "tests" / "ManaGatewayAdapterTest.kt"
     if not gateway_test_source.is_file() or gateway_test_source.stat().st_size == 0:
         raise SystemExit(f"Required gateway adapter test source is missing or empty: {gateway_test_source}")
     shutil.copy2(gateway_test_source, app_test_target.parent / "ManaGatewayAdapterTest.kt")
