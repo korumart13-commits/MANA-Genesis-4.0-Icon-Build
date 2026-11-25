@@ -142,3 +142,13 @@ The next safe system-integration stage adds `settings.open_page`. It accepts exa
 - `battery` — Android battery-saver settings
 
 The owner confirmation dialog displays the resolved page name. The executor creates the Android intent from a fixed internal mapping, checks that Android can resolve it, consumes the one-time token for the exact action, and only then opens the system page. Model-provided intent actions, component names, URLs, arbitrary settings pages, and extra arguments are rejected. This feature opens Android settings; it does not change switches or values itself. All other system modifications remain unavailable.
+
+
+## Notification status and settings navigation
+
+The next notification-related increment remains privacy-preserving:
+
+- `device.read_notification_status` reads only whether MANA's own app notifications are enabled and whether Android has granted MANA notification-policy access for Do Not Disturb. It does not read notification titles, message bodies, sender names, or other apps' notification data.
+- `settings.open_page` accepts two additional fixed destinations: `notifications` opens Android's notification settings, and `do_not_disturb` opens Android's notification-policy access screen.
+- Opening either page requires the same exact-action, one-time owner confirmation as other settings navigation. Android still requires the owner to grant any special access manually.
+- MANA does not enable notification access, change Do Not Disturb, silence calls, or read notification content in this increment.
