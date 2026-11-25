@@ -23,16 +23,44 @@ class ManaGatewayChatService(
     }
     @Volatile private var localRuntime: ManaLiteRtLmRuntime? = null
 
-    fun hasLocalModel(): Boolean = localModelFile.isFile && localModelFile.length() > 0L
+    fun hasLocalModel(): Boolean =
+        localModelFile.isFile && localModelFile.length() == LOCAL_MODEL_EXPECTED_BYTES
+
+    /** Local model is provisioned automatically on first use; no file picker is required. */
     fun canRespondLocally(): Boolean = hasLocalModel()
+    fun canStartLocalSetup(): Boolean = true
+
+    fun prepareLocalModel(callback: (success: Boolean, detail: String) -> Unit): Boolean {
+        if (hasLocalModel()) {
+            callback(true, "Локальная модель MANA уже установлена.")
+            return true
+        }
+        if (!modelDownloadInProgress.compareAndSet(false, true)) {
+            callback(false, "Загрузка локальной модели MANA уже выполняется.")
+            return false
+        }
+        Thread({
+            try {
+                ensureLocalModel()
+                callback(true, "Локальный ИИ MANA установлен и проверен.")
+            } catch (error: Exception) {
+                callback(false, error.message ?: "Не удалось загрузить локальную модель.")
+            } finally {
+                modelDownloadInProgress.set(false)
+            }
+        }, "mana-model-provision").start()
+        return true
+    }
 
     fun send(message: String, callback: (answer: String?, error: String?, approvals: List<ManaApprovalRequest>) -> Unit): Boolean {
-        if ((!isConfigured() && !hasLocalModel()) || message.isBlank()) return false
+        if (message.isBlank()) return false
+        if (!isConfigured() && !hasLocalModel() && !modelDownloadInProgress.compareAndSet(false, true)) return false
         stop()
         val signal = ManaCancellationSignal()
         activeSignal = signal
         Thread({
             try {
+                if (!isConfigured() && !hasLocalModel()) ensureLocalModel()
                 val config = ManaGatewayConfig(
                     endpoint = ManaGatewayDeploymentConfig.ENDPOINT,
                     expectedHost = ManaGatewayDeploymentConfig.EXPECTED_HOST
@@ -79,6 +107,7 @@ class ManaGatewayChatService(
                 callback(null, messageText, emptyList())
             } finally {
                 if (activeSignal === signal) activeSignal = null
+                if (!hasLocalModel()) modelDownloadInProgress.set(false)
             }
         }, "mana-gateway-chat").start()
         return true
@@ -105,6 +134,61 @@ class ManaGatewayChatService(
         stop()
         localRuntime?.close()
         localRuntime = null
+    }
+
+    private fun ensureLocalModel() {
+        if (hasLocalModel()) return
+        val directory = localModelFile.parentFile ?: error("Не удалось определить каталог локальной модели.")
+        if (!directory.exists() && !directory.mkdirs()) error("Не удалось создать каталог локальной модели.")
+        val partial = java.io.File(directory, localModelFile.name + ".part")
+        val connection = (java.net.URL(LOCAL_MODEL_URL).openConnection() as java.net.HttpURLConnection).apply {
+            connectTimeout = 20_000
+            readTimeout = 60_000
+            instanceFollowRedirects = true
+            requestMethod = "GET"
+        }
+        try {
+            connection.connect()
+            check(connection.responseCode == java.net.HttpURLConnection.HTTP_OK) {
+                "Сервер модели вернул HTTP ${connection.responseCode}."
+            }
+            connection.inputStream.use { input ->
+                partial.outputStream().use { output ->
+                    val buffer = ByteArray(1024 * 1024)
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        output.write(buffer, 0, count)
+                    }
+                }
+            }
+        } finally {
+            connection.disconnect()
+        }
+        check(partial.length() == LOCAL_MODEL_EXPECTED_BYTES) {
+            "Размер локальной модели не совпадает с проверенным размером. Файл не установлен."
+        }
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        partial.inputStream().buffered().use { input ->
+            val buffer = ByteArray(1024 * 1024)
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                digest.update(buffer, 0, count)
+            }
+        }
+        val actualHash = digest.digest().joinToString("") { "%02x".format(it) }
+        check(actualHash == LOCAL_MODEL_SHA256) {
+            "Контрольная сумма локальной модели не совпала. Файл отклонён."
+        }
+        if (localModelFile.exists() && !localModelFile.delete()) error("Не удалось заменить старый файл модели.")
+        check(partial.renameTo(localModelFile)) { "Не удалось сохранить проверенную модель." }
+    }
+
+    companion object {
+        private const val LOCAL_MODEL_URL = "https://huggingface.co/litert-community/Qwen3-0.6B-int4/resolve/6aa2daf/qwen3_0.6b_q4_block32_ekv1280.litertlm"
+        private const val LOCAL_MODEL_EXPECTED_BYTES = 363_856_896L
+        private const val LOCAL_MODEL_SHA256 = "312ce4e6bc0816edf844b9b7e66542648a89440b54822c3581e48a19e9ff5715"
     }
 
     private object NoAvailableManaTools : ManaCancellableCognitiveTools {
