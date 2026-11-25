@@ -334,7 +334,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew --no-daemon --continue --stacktrace assembleDebug
+          ./gradlew --no-daemon --continue --stacktrace test assembleDebug
+
+      - name: Evaluate MANA test and static-analysis evidence
+        shell: bash
+        env:
+          PROJECT_DIR: ${{ steps.project.outputs.dir }}
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/tools/mana_build_quality_gate.py" \
+            --tests "$PROJECT_DIR" \
+            --analysis "$GITHUB_WORKSPACE/code-intelligence/MANA_CODE_INTELLIGENCE.json" \
+            --out "$GITHUB_WORKSPACE/quality-gate"
 
       - name: Collect APKs
         if: success()
@@ -352,4 +363,13 @@ jobs:
           name: ManaOS-debug-APK
           path: output/*.apk
           if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload MANA build quality evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ManaOS-build-quality
+          path: quality-gate/*
+          if-no-files-found: warn
           retention-days: 14
