@@ -69,8 +69,8 @@ class ManaGatewayChatService(
                     expectedHost = ManaGatewayDeploymentConfig.EXPECTED_HOST
                 )
                 val credentials = ManaAndroidGatewayCredentialStore(appContext)
-                // All reasoning flows through the MANA-owned engine. GPT is served by the
-                // MANA gateway; the OpenAI API key never ships in this Android application.
+                // The on-device model is tried first. The optional MANA gateway is secondary;
+                // provider secrets never ship in this Android application.
                 val gptProvider = if (ManaGatewayDeploymentConfig.isConfigured()) {
                     ManaGatewayGptProvider(config, credentials)
                 } else null
