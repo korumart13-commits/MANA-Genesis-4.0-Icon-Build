@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#071426"><title>MANA Home · Genesis 4.0</title>
+<style>
+:root{color-scheme:dark;--bg:#071426;--panel:#102b50;--panel2:#0b203d;--blue:#1765a8;--cyan:#54c8f5;--text:#eaf4ff;--muted:#91a9c5;--line:#234b72}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% -15%,#174675 0,#071426 47%,#030914 100%);color:var(--text);font:15px system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:620px;margin:auto;padding:env(safe-area-inset-top) 18px calc(28px + env(safe-area-inset-bottom))}
+header{display:flex;align-items:center;justify-content:space-between;padding:22px 2px 12px}.brand{font-weight:900;letter-spacing:.22em;color:var(--cyan);font-size:23px}.edition{font-size:10px;letter-spacing:.15em;color:var(--muted)}
+.clock{font-size:13px;color:var(--muted);text-align:right}.clock b{display:block;color:var(--text);font-size:18px;font-weight:650}
+.hero{position:relative;overflow:hidden;margin-top:10px;padding:20px;border:1px solid #2c5d87;border-radius:26px;background:linear-gradient(135deg,#143d68,#0c203c 70%);display:grid;grid-template-columns:116px 1fr;gap:16px;align-items:center;box-shadow:0 18px 55px #0005}
+.orbit{height:116px;width:116px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle,#1c5b91,#071a33 70%);border:1px solid #397bb0;box-shadow:0 0 35px #168bc755;position:relative}
+.orbit:before,.orbit:after{content:"";position:absolute;border:1px solid #54c8f577;border-radius:50%;inset:7px}.orbit:after{inset:-5px;border-style:dashed;opacity:.55}
+.face{width:74px;height:86px;border-radius:48% 48% 44% 44%;background:linear-gradient(145deg,#f0d0c8,#bd8e91);position:relative;box-shadow:0 0 22px #54c8f566}
+.face:before{content:"";position:absolute;left:-8px;right:-8px;top:-11px;height:38px;border-radius:60% 60% 35% 35%;background:linear-gradient(130deg,#080e1b,#172943);z-index:2}
+.face:after{content:"";position:absolute;left:-8px;right:-8px;bottom:-25px;height:38px;border-radius:48% 48% 10px 10px;background:linear-gradient(90deg,#061020,#17365b,#061020)}
+.eyes{position:absolute;z-index:3;top:37px;left:17px;width:40px;height:6px;border-left:5px solid #17355a;border-right:5px solid #17355a}
+.hero h1{margin:0 0 7px;font-size:22px}.hero p{margin:0;color:#bfd5eb;line-height:1.45;font-size:13px}.status{display:inline-flex;align-items:center;gap:6px;margin-top:11px;padding:6px 10px;border:1px solid #3677a5;border-radius:99px;color:#9be2ff;font-size:10px;letter-spacing:.08em}.dot{width:6px;height:6px;border-radius:50%;background:#54d7aa;box-shadow:0 0 9px #54d7aa}
+.search{display:flex;gap:10px;margin:18px 0 20px}.search input{flex:1;min-width:0;background:#091b33;border:1px solid var(--line);border-radius:16px;padding:15px;color:var(--text);font:inherit;outline:none}.search input:focus{border-color:var(--cyan)}button{font:inherit;color:var(--text);border:1px solid #3979a7;background:linear-gradient(145deg,#1765a8,#104678);border-radius:15px;padding:0 17px;font-weight:700}
+.label{font-size:10px;letter-spacing:.17em;font-weight:850;color:#83cbed;margin:22px 2px 11px}
+.quick{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.quick button{height:76px;padding:9px 5px;background:#0c2341;border-color:#23486d;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;font-size:11px}.symbol{font-size:22px;color:var(--cyan)}
+.apps{display:grid;grid-template-columns:repeat(4,1fr);gap:15px 8px}.app{background:transparent;border:0;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:7px;font-size:11px;color:#d7eaff}.icon{width:54px;height:54px;border-radius:18px;background:linear-gradient(145deg,#174775,#0b1c35);border:1px solid #2b5881;display:grid;place-items:center;color:#8cdbff;font-size:23px;box-shadow:0 8px 18px #0003}
+.dock{position:sticky;bottom:10px;margin-top:25px;padding:12px 8px;background:#0b1e37eF;border:1px solid #2b5072;border-radius:23px;display:flex;justify-content:space-around;backdrop-filter:blur(18px)}.dock button{width:54px;height:50px;border:0;background:transparent;font-size:23px;padding:0}.dock .mana{background:linear-gradient(145deg,#1683c5,#12406c);border-radius:17px;box-shadow:0 0 20px #168bc755}
+.note{font-size:10px;color:#718da9;text-align:center;line-height:1.5;margin:17px 10px}
+@media(max-width:390px){main{padding-left:14px;padding-right:14px}.hero{grid-template-columns:92px 1fr;padding:15px;gap:12px}.orbit{width:92px;height:92px}.hero h1{font-size:19px}.quick{gap:6px}.icon{width:49px;height:49px}}
+</style></head>
+<body><main>
+<header><div><div class="brand">MANA</div><div class="edition">GENESIS · HOME 4.0</div></div><div class="clock"><b id="time">--:--</b><span id="date">Загрузка даты…</span></div></header>
+<section class="hero"><div class="orbit"><div class="face"><div class="eyes"></div></div></div><div><h1>Я рядом.</h1><p>Твоё пространство. Один интеллект. Твои правила.</p><span class="status"><i class="dot"></i> MANA HOME</span></div></section>
+<form class="search" id="command"><input id="query" autocomplete="off" placeholder="Спросить Ману или найти приложение…"><button type="submit">➜</button></form>
+<div class="label">БЫСТРЫЕ ДЕЙСТВИЯ</div><section class="quick">
+<button data-action="wifi"><span class="symbol">◉</span>Wi‑Fi</button><button data-action="sound"><span class="symbol">♫</span>Звук</button><button data-action="torch"><span class="symbol">ϟ</span>Фонарик</button><button data-action="settings"><span class="symbol">⚙</span>Настройки</button>
+</section>
+<div class="label">ТВОИ ПРИЛОЖЕНИЯ</div><section class="apps">
+<button class="app" data-app="Телефон"><span class="icon">☎</span>Телефон</button>
+<button class="app" data-app="Сообщения"><span class="icon">▤</span>Сообщения</button>
+<button class="app" data-app="Камера"><span class="icon">◎</span>Камера</button>
+<button class="app" data-app="Галерея"><span class="icon">▧</span>Галерея</button>
+<button class="app" data-app="Файлы"><span class="icon">▰</span>Файлы</button>
+<button class="app" data-app="Браузер"><span class="icon">◌</span>Браузер</button>
+<button class="app" data-app="Дневник MANA"><span class="icon">✎</span>Дневник</button>
+<button class="app" data-app="Задачи MANA"><span class="icon">✓</span>Задачи</button>
+<button class="app" data-app="Игры"><span class="icon">◇</span>Игры</button>
+<button class="app" data-app="Контакты"><span class="icon">♙</span>Контакты</button>
+<button class="app" data-app="Музыка"><span class="icon">♫</span>Музыка</button>
+<button class="app" data-app="Настройки MANA"><span class="icon">⚙</span>Настройки</button>
+</section>
+<nav class="dock"><button aria-label="Телефон" data-app="Телефон">☎</button><button aria-label="Сообщения" data-app="Сообщения">▤</button><button class="mana" aria-label="MANA" id="mana">✦</button><button aria-label="Камера" data-app="Камера">◎</button></nav>
+<p class="note">Демонстрационный макет MANA Home. Системные переключатели и запуск приложений подключаются через Android API и разрешения; этот веб-макет не меняет настройки телефона.</p>
+</main>
+<script>
+const time=document.getElementById('time'),date=document.getElementById('date');function tick(){const d=new Date();time.textContent=d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});date.textContent=d.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'})}tick();setInterval(tick,1000);
+function message(s){document.getElementById('query').value=s;document.getElementById('query').focus()}
+document.getElementById('command').addEventListener('submit',e=>{e.preventDefault();const q=document.getElementById('query').value.trim();if(q)message('Команда MANA: '+q)});
+document.querySelectorAll('[data-app]').forEach(b=>b.addEventListener('click',()=>message('Открыть '+b.dataset.app)));
+document.querySelectorAll('[data-action]').forEach(b=>b.addEventListener('click',()=>message('Быстрое действие: '+b.dataset.action+' — требуется Android API')));
+document.getElementById('mana').addEventListener('click',()=>message('Привет. Чем займёмся?'));
+</script></body></html>
