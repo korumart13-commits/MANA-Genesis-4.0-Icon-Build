@@ -184,20 +184,20 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
 
     private fun checkCloud() {
         if (gatewayChat.isConfigured()) {
-            status.text = "Шлюз MANA: адрес встроен в сборку. Проверка подключения произойдёт при отправке сообщения."
+            status.text = "Локальный ИИ MANA — основной. Облачный сервер доступен как дополнительный резерв."
             cloudReady = false
             return
         }
         val url = prefs.getString("cloud_url", "").orEmpty()
         if (url.isBlank()) {
-            status.text = "Облако: не подключено. Адрес сервера не настроен; работаем в локальном режиме."
+            status.text = "Локальный ИИ MANA — основной режим. Сервер пока не подключён; интернет для общения с Маной не обязателен после установки модели."
             cloudReady = false
             return
         }
         ManaCloudClient(url, prefs.getString("cloud_token", null)).checkHealth { ok, detail ->
             runOnUiThread {
                 cloudReady = ok
-                status.text = if (ok) "Облако: подключено и отвечает." else "Облако: недоступно ($detail). Локальный режим."
+                status.text = if (ok) "Локальный ИИ MANA — основной. Дополнительный облачный резерв доступен." else "Локальный ИИ MANA — основной. Облачный резерв недоступен ($detail)."
             }
         }
     }
@@ -206,7 +206,7 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
         val text = message.text.toString().trim()
         if (text.isEmpty()) return
         if (gatewayChat.isConfigured() || gatewayChat.canStartLocalSetup()) {
-            chatLog.text = "Ты: $text\n\nМана: " + if (gatewayChat.isConfigured()) "подключаю интеллект MANA…" else if (gatewayChat.hasLocalModel()) "запускаю локальную модель на телефоне…" else "подготавливаю локальный ИИ MANA (около 347 МБ)…"
+            chatLog.text = "Ты: $text\n\nМана: " + if (gatewayChat.hasLocalModel()) "запускаю основной локальный интеллект MANA…" else "подготавливаю основной локальный ИИ MANA (около 347 МБ)…"
             message.setText("")
             (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
                 .hideSoftInputFromWindow(message.windowToken, 0)
