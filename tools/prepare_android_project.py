@@ -27,6 +27,49 @@ def ensure_internet_permission(project: Path) -> None:
     manifest.write_text(source, encoding="utf-8")
 
 
+def ensure_mana_components(project: Path) -> None:
+    """Register MANA as an optional HOME launcher and declare its private components."""
+    manifest = project / "app/src/main/AndroidManifest.xml"
+    source = manifest.read_text(encoding="utf-8")
+    permissions = [
+        '    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />',
+        '    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />',
+        '    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />',
+    ]
+    for permission in permissions:
+        match_name = re.search(r'android:name="([^"]+)"', permission)
+        if match_name and match_name.group(1) not in source:
+            root = re.search(r"<manifest\\b[^>]*>", source)
+            if not root:
+                raise SystemExit("Could not safely locate the Android manifest root element.")
+            source = source[:root.end()] + "\\n" + permission + source[root.end():]
+    app_close = source.find("</application>")
+    if app_close < 0:
+        raise SystemExit("Could not safely locate the Android application closing tag.")
+    if "com.mana.os.app.ManaHomeActivity" not in source:
+        components = [
+            '<activity android:name="com.mana.os.app.ManaHomeActivity" android:exported="true" android:label="MANA">',
+            '    <intent-filter>',
+            '        <action android:name="android.intent.action.MAIN" />',
+            '        <category android:name="android.intent.category.LAUNCHER" />',
+            '        <category android:name="android.intent.category.HOME" />',
+            '        <category android:name="android.intent.category.DEFAULT" />',
+            '    </intent-filter>',
+            '</activity>',
+            '<activity android:name="com.mana.os.app.ManaDiaryActivity" android:exported="false" />',
+            '<activity android:name="com.mana.os.app.ManaLifeManagerActivity" android:exported="false" />',
+            '<service android:name="com.mana.os.integration.ManaAvatarService" android:exported="false" android:foregroundServiceType="specialUse">',
+            '    <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="User-started floating MANA avatar overlay" />',
+            '</service>',
+        ]
+        source = source[:app_close] + "        " + "\\n        ".join(components) + "\\n    " + source[app_close:]
+    else:
+        required = ("com.mana.os.app.ManaDiaryActivity", "com.mana.os.app.ManaLifeManagerActivity", "com.mana.os.integration.ManaAvatarService")
+        missing = [name for name in required if name not in source]
+        if missing:
+            raise SystemExit("MANA manifest is partially configured; refusing unsafe edits: " + ", ".join(missing))
+    manifest.write_text(source, encoding="utf-8")
+
 def configure_litert_lm(project: Path) -> None:
     """Pin LiteRT-LM 0.16.1 and its minimum compatible Kotlin compiler in the generated app."""
     gradle_files = list(project.rglob("*.gradle")) + list(project.rglob("*.gradle.kts")) + list(project.rglob("libs.versions.toml"))
@@ -152,6 +195,7 @@ def main() -> None:
     write_gateway_deployment_config(project, os.environ.get("MANA_GATEWAY_ENDPOINT", ""), os.environ.get("MANA_GATEWAY_HOST", ""))
     write_voice_deployment_config(project, os.environ.get("MANA_TTS_ENDPOINT", ""), os.environ.get("MANA_TTS_HOST", ""))
     ensure_internet_permission(project)
+    ensure_mana_components(project)
     configure_litert_lm(project)
     for name in ("ManaGenesis.kt", "ManaEngine.kt", "ManaGrowthEngine.kt", "ManaLiteRtLmRuntime.kt", "ManaSystemKernel.kt", "ManaCoreKernel.kt", "AndroidSelfDevelopment.kt", "ManaDevelopmentPipeline.kt", "ManaCognitiveRuntime.kt", "ManaLocalCognitiveMemory.kt", "ManaDialogueState.kt", "ManaDefaultCognitivePolicy.kt", "ManaGatewayReasoningModel.kt", "ManaAndroidGatewayCredentialStore.kt", "ManaGatewayChatService.kt", "ManaVoiceGatewayClient.kt", "ManaReadOnlyToolRegistry.kt", "ManaAndroidReadOnlyTools.kt", "ManaOwnerApprovalBroker.kt", "ManaApprovedActionValidation.kt", "ManaAndroidApprovedActionExecutor.kt"):
         source = integration / name
