@@ -29,4 +29,26 @@ class ManaApprovedActionValidationTest {
             ))
         }
     }
+
+    @Test
+    fun acceptsOnlyFixedAndroidSettingsPages() {
+        ManaSettingsPage.values().forEach { page ->
+            assertEquals(page, ManaApprovedActionValidation.settingsPage(
+                ManaCognitiveAction("settings.open_page", mapOf("page" to page.key))
+            ))
+        }
+    }
+
+    @Test
+    fun rejectsArbitrarySettingsActionsAndArguments() {
+        assertNull(ManaApprovedActionValidation.settingsPage(
+            ManaCognitiveAction("settings.change", mapOf("page" to "wifi"))
+        ))
+        assertNull(ManaApprovedActionValidation.settingsPage(
+            ManaCognitiveAction("settings.open_page", mapOf("page" to "wifi", "enabled" to "true"))
+        ))
+        assertNull(ManaApprovedActionValidation.settingsPage(
+            ManaCognitiveAction("settings.open_page", mapOf("page" to "developer_options"))
+        ))
+    }
 }
