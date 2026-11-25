@@ -1,41 +1,42 @@
-# MANA Local AI — LiteRT-LM Android integration
+# Локальный интеллект MANA Genesis 4.0
 
-## Current design
+## Приоритет работы
 
-- MANA uses Google's LiteRT-LM Android runtime through `ManaLiteRtLmRuntime`.
-- The generated Android app pins `com.google.ai.edge.litertlm:litertlm-android:0.16.1`.
-- The generated app's Kotlin compiler is raised from 2.0.21 to 2.2.20 when that exact baseline is present.
-- The selected local model is Qwen3-0.6B INT4, LiteRT-LM format, Apache-2.0.
-- On first explicit setup or first offline chat, MANA automatically downloads the pinned model revision from Hugging Face into app-private `filesDir/models/mana-local.litertlm`. No file picker, manual transfer, or separate model installer is required.
-- The downloaded file is accepted only after a minimum-size check and SHA-256 verification. An incomplete or modified download is rejected.
-- The model is not copied into the APK's assets. The Android on-device AI guidance recommends keeping large model files outside the APK and downloading them into app-private storage; this avoids an enormous APK and lets Android install the app normally.
-- The model download is about 347 MB and requires internet access once. After it is installed, local inference runs offline.
-- GPT through MANA Gateway remains the preferred provider when configured; the local model is the on-device fallback. If no gateway is configured, MANA provisions and uses the local model.
-- CPU is the conservative initial backend. GPU/NPU are not enabled until tested against RMX5566 drivers and a matching model bundle.
-- The local engine is initialized on the chat worker, retained for subsequent messages, and closed with the MANA chat lifecycle.
+Локальная модель на телефоне — основной мозг MANA. Облачный MANA Gateway не требуется для ежедневной работы и не вызывается при успешном локальном ответе. Если владелец позже настроит сервер, он будет дополнительным резервом для сложных задач, когда локальная модель недоступна или явно потребуется облачная возможность.
 
-## Pinned local model
+## Модель первого этапа
 
-- Repository: https://huggingface.co/litert-community/Qwen3-0.6B-int4
-- File: `qwen3_0.6b_q4_block32_ekv1280.litertlm`
-- Revision: `6aa2daf`
-- Approximate published size: 347 MB
-- SHA-256: `312ce4e6bc0816edf844b9b7e66542648a89440b54822c3581e48a19e9ff5715`
-- License: Apache-2.0 (model card states it is inherited from Qwen/Qwen3-0.6B).
+- Qwen3-0.6B INT4 LiteRT-LM, около 332–347 МБ.
+- Репозиторий: https://huggingface.co/litert-community/Qwen3-0.6B-int4
+- Лицензия: Apache-2.0.
+- Приложение скачивает зафиксированную версию при первом запуске локального ИИ, проверяет SHA-256 и хранит модель в закрытом каталоге приложения.
+- После установки инференс выполняется локально и без интернета.
+- CPU backend используется как наиболее консервативная начальная конфигурация для Qualcomm SM6225.
 
-The 0.6B INT4 model is a compact baseline, not a claim of perfect or frontier-level intelligence. It is intended for offline chat, summaries and simple question answering. More demanding reasoning stays with the configured cloud provider when available.
+Выбор 0.6B — осознанная стартовая конфигурация по соотношению размера и вероятности комфортной работы на телефоне. Более крупная Qwen3-1.7B INT4 LiteRT-LM (около 932 МБ) остаётся кандидатом для отдельного профиля повышенного качества. Её нельзя включать по умолчанию без перехода на совместимую версию LiteRT-LM и проверки пикового потребления памяти, скорости, нагрева и стабильности на реальном RMX5566.
 
-## Installation and first launch
+## Движок развития MANA
 
-1. Install the MANA Android application.
-2. Open MANA and tap «Подготовить встроенный локальный ИИ · 347 МБ», or send the first message while no cloud gateway is configured.
-3. Keep internet access available while the model is downloaded and verified.
-4. After successful verification, MANA can answer locally without internet. The model stays in app-private storage.
+Локальный ИИ состоит не только из весов модели:
+- LiteRT-LM исполняет языковую модель на устройстве.
+- MANA Cognitive Runtime собирает контекст, вызывает инструменты в пределах политики безопасности и сохраняет итог взаимодействия.
+- ManaLocalCognitiveMemory хранит локальные сводки диалогов и позволяет вспоминать их по смысловой близости через локальный поиск слов.
+- ManaGrowthEngine хранит опыт и библиотеку навыков. Навык попадает в библиотеку только после явного подтверждения владельцем; подтверждённые навыки подмешиваются в контекст будущих ответов.
+- ManaDevelopmentPipeline и AndroidSelfDevelopment собирают идеи, формируют предложения и проводят их через этапы проверки. Они не запускают сгенерированный код и не меняют системные файлы автоматически.
+- MANA Home связывает чат, голос Android TTS/распознавание речи и 3D-аватар.
 
-## Validation still required
+Важно: накопление памяти, навыков и опыта — это развитие поведения и персонализации, а не автоматическое переобучение весов языковой модели. На телефоне MANA не будет самостоятельно переписывать собственную модель или исполнять непроверенный код. Позднее сервер может выполнять тяжёлое обучение/оценку и доставлять подписанные обновления после проверки и согласия владельца.
 
-- GitHub Actions must compile and test the generated Android project with the pinned Kotlin and LiteRT-LM versions.
-- The RMX5566 must be tested physically for model initialization, Russian-language response quality, memory pressure, latency, heat and battery use.
-- The current local adapter uses the CPU backend; device-specific GPU/NPU acceleration is not enabled.
-- Cancellation is checked between streamed chunks; a native inference cancellation hook needs a verified API-specific implementation.
-- This Android app is MANA's primary Android home/assistant app, not yet a privileged Android system component and not a replacement for the Linux kernel. The AOSP/system-image stage comes after the app is stable.
+## Локальная работа и будущий сервер
+
+Первый запуск: приложение скачивает и проверяет модель. Далее MANA отвечает локально. Если облачный шлюз настроен, он используется только как вторичный провайдер после неудачи локального движка. Если шлюз не настроен, локальный режим остаётся полноценным основным режимом.
+
+## Проверки перед объявлением готовности
+
+- Успешная сборка Android-проекта в CI.
+- Успешная инициализация модели и ответы на русском языке на реальном RMX5566.
+- Тесты памяти, остановки запроса, низкого заряда, нехватки RAM, температуры и длительной беседы.
+- Проверка, что при доступном локальном движке сетевой запрос к облаку не отправляется.
+- Проверка очистки памяти, удаления локальных навыков и управления данными пользователем.
+
+MANA сейчас создаётся как основное Android-приложение и кандидат на роль launcher. Привилегированным системным компонентом Android она станет только в будущей сборке MANA OS/AOSP.
