@@ -43,6 +43,32 @@ Before a real provider is considered connected:
 
 The Android project currently has client-side cloud-health/chat plumbing and a provider-neutral cognitive orchestration interface. The real gateway deployment, provider adapter, credentials, source-search provider, device authentication, and production privacy controls are not verified as deployed. Therefore the app must continue to show `not connected / local mode` until these gates pass.
 
+## Implemented Android adapter contract
+
+The build branch now contains `integration/ManaGatewayReasoningModel.kt`:
+
+- `ManaGatewayConfig` accepts only the exact configured HTTPS host, standard HTTPS port, and `/v1/mana/respond` route. It rejects URL credentials, query strings, fragments, host mismatches, and HTTP.
+- `ManaGatewayCredentialProvider` is an injection point for a short-lived, revocable device bearer token. No token is bundled, generated, or persisted by this adapter.
+- `ManaHttpsUrlConnectionTransport` disables redirects, applies bounded connect/read timeouts, limits response bytes, and disconnects when the host cancellation signal fires.
+- `ManaAndroidGatewayJsonCodec` serializes bounded context and parses only bounded structured answer/action proposals. It does not accept executable code. The existing local policy remains authoritative for every proposed action.
+- Non-2xx responses, missing credentials, invalid endpoint configuration, cancellation, and oversized payloads fail closed.
+
+### Gateway wire protocol v1
+
+The Android adapter sends JSON to the configured route with `protocol_version: 1`, `conversation_id`, `cycle`, `input`, bounded `memories`, `dialogue`, `sources`, `observations`, `available_tools`, and an explicit `context_trust` marker. The gateway must treat all context fields as untrusted data.
+
+A successful response is JSON with:
+- `summary`: short user-safe progress summary;
+- `answer`: optional user-facing answer;
+- `actions`: zero to three objects with `name` and string-only `arguments`;
+- `stop_after_actions`: boolean.
+
+The response action list is a proposal only. Android must pass each proposal through the local allow-list and owner-confirmation flow before any tool adapter executes it. The gateway must never be allowed to grant permissions, change the endpoint, or modify local policy.
+
+### Remaining deployment/integration gates
+
+The adapter is implemented as an injectable component, but it is not yet wired into the home-screen chat path because no verified gateway endpoint or device-token issuer is configured. No endpoint, provider, or credential has been invented. A real deployment still needs a verified HTTPS origin, server-side provider configuration, device enrollment/token rotation/revocation, backend implementation of protocol v1, privacy and retention controls, and an explicit app runtime factory that injects the verified config and OS-protected token provider.
+
 ## Owner authority
 
 The owner can stop a request, clear local memory, revoke paired devices, and decline any proposed action. No self-update, release, privilege escalation, or firmware change may bypass owner approval.
