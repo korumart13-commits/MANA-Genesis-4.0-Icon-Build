@@ -11,7 +11,8 @@ class ManaCognitiveRuntime(
     private val memory: ManaCognitiveMemory,
     private val tools: ManaCognitiveTools,
     private val policy: ManaCognitivePolicy,
-    private val maxCycles: Int = 4
+    private val maxCycles: Int = 4,
+    private val control: ManaRuntimeControl = ManaRuntimeControl.NEVER_STOP
 ) {
     init { require(maxCycles in 1..8) }
 
@@ -24,6 +25,10 @@ class ManaCognitiveRuntime(
         var cycles = 0
 
         while (cycles < maxCycles && answer == null) {
+            if (control.isStopRequested()) {
+                answer = "Остановлено по команде владельца."
+                break
+            }
             cycles++
             val decision = model.decide(
                 ManaCognitiveContext(
@@ -44,6 +49,10 @@ class ManaCognitiveRuntime(
             }
 
             for (action in decision.actions.take(3)) {
+                if (control.isStopRequested()) {
+                    answer = "Остановлено по команде владельца."
+                    break
+                }
                 val verdict = policy.check(action)
                 if (verdict != ManaActionVerdict.ALLOW) {
                     val message = when (verdict) {
@@ -58,6 +67,10 @@ class ManaCognitiveRuntime(
                     continue
                 }
 
+                if (control.isStopRequested()) {
+                    answer = "Остановлено по команде владельца."
+                    break
+                }
                 val result = tools.execute(action)
                 toolEvents += ManaToolEvent(action.name, result.success, result.summary)
                 observations += "Инструмент ${action.name}: ${result.summary.take(500)}"
@@ -141,4 +154,15 @@ interface ManaCognitiveTools {
 interface ManaCognitivePolicy {
     /** Unknown tools and sensitive actions must not be allowed by default. */
     fun check(action: ManaCognitiveAction): ManaActionVerdict
+}
+
+/** Host-owned interrupt signal. The model cannot modify this control. */
+interface ManaRuntimeControl {
+    fun isStopRequested(): Boolean
+
+    companion object {
+        val NEVER_STOP = object : ManaRuntimeControl {
+            override fun isStopRequested(): Boolean = false
+        }
+    }
 }
