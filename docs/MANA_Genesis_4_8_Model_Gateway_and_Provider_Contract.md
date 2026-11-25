@@ -90,3 +90,14 @@ The Android project now includes `ManaReadOnlyToolRegistry`, a fail-closed execu
 - The registry itself does not grant Android permissions and is not yet populated with Android system handlers.
 
 The associated unit tests cover allowlisting, schema enforcement, cancellation, and rejection of side-effecting tool registration. This is an execution-boundary foundation, not a claim that MANA can already control phone settings or applications.
+
+
+## Android read-only diagnostics
+
+The gateway chat runtime now registers three local Android read-only tools:
+
+- `device.read_battery`: reads the battery percentage through Android's `BatteryManager`.
+- `device.read_storage`: reads coarse internal-storage totals and available space through `StatFs`.
+- `device.read_status`: combines Android release, battery percentage, and coarse storage availability.
+
+These tools request no runtime permission and cannot modify device state. They are passed to the model only when the user asks a question that needs device status, through the normal bounded tool cycle. The app inventory tool name remains reserved but is not registered: installed-app lists can reveal private habits and are not sent to the remote gateway. No app launching, settings changes, calls, messages, file writes, or deletion are implemented in this stage.
