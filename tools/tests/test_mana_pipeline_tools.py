@@ -193,6 +193,19 @@ class ManaToolTests(unittest.TestCase):
         self.assertIn('sideEffectingToolCannotBeRegistered', test_source)
         self.assertIn('unknownArgumentsAndMissingRequiredArgumentsAreRejectedBeforeHandler', test_source)
 
+    def test_android_read_only_diagnostics_are_wired_without_app_inventory(self):
+        integration = Path(__file__).resolve().parents[2] / "integration"
+        source = (integration / "ManaAndroidReadOnlyTools.kt").read_text(encoding="utf-8")
+        service = (integration / "ManaGatewayChatService.kt").read_text(encoding="utf-8")
+        prepare = (TOOLS / "prepare_android_project.py").read_text(encoding="utf-8")
+        self.assertIn('"ManaAndroidReadOnlyTools.kt"', prepare)
+        self.assertIn('ManaAndroidReadOnlyTools.create(appContext)', service)
+        self.assertIn('device.read_battery', source)
+        self.assertIn('device.read_storage', source)
+        self.assertIn('device.read_status', source)
+        self.assertIn('Installed-app inventory is intentionally not sent', source)
+        self.assertNotIn('QUERY_ALL_PACKAGES', source)
+
     def test_gateway_deployment_config_is_optional_and_pinned(self):
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp)
