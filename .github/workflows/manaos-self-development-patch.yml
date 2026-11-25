@@ -1,0 +1,187 @@
+name: ManaOS Isolated Self-Development Patch
+
+on:
+  workflow_dispatch:
+    inputs:
+      proposal_id:
+        description: "ID предложения (только буквы, цифры и дефисы)"
+        required: true
+        type: string
+      change_scope:
+        description: "Тип изменения"
+        required: true
+        type: choice
+        options:
+          - minor_patch
+          - full_update
+      owner_approval:
+        description: "Для full_update введи APPROVE_FULL_UPDATE; для minor_patch оставь пустым"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mana-self-development-patch
+  cancel-in-progress: false
+
+jobs:
+  isolated-patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Checkout proposal and patch gate
+        uses: actions/checkout@v4
+
+      - name: Run MANA tooling regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile tools/mana_code_intelligence.py tools/mana_ai_code_author.py tools/mana_patch_gate.py tools/mana_build_quality_gate.py
+          python3 -m unittest discover -s tools/tests -v
+
+      - name: Validate proposal ID and patch presence
+        id: proposal
+        shell: bash
+        env:
+          PROPOSAL_ID: ${{ inputs.proposal_id }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$PROPOSAL_ID" =~ ^[A-Za-z0-9][A-Za-z0-9-]{0,63}$ ]]; then
+            echo "Invalid proposal ID."
+            exit 2
+          fi
+          PATCH="patches/proposals/$PROPOSAL_ID.patch"
+          test -s "$PATCH"
+          echo "patch=$PATCH" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Download the current ManaOS source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p source
+          curl -fL --retry 3 \
+            "https://raw.githubusercontent.com/korumart13-commits/MANA-Genesis-4.0./main/MANA_Genesis_4_0_MIRROR_READY_SOURCE%282%29.zip" \
+            -o source/manaos-source.zip
+          unzip -q source/manaos-source.zip -d source/unpacked
+
+      - name: Locate the unified Android project
+        id: project
+        shell: bash
+        run: |
+          set -euo pipefail
+          WRAPPER="$(find "$GITHUB_WORKSPACE/source/unpacked" -type f -path '*/existing_aosp/MANA_OS_3_0_Android_Project/gradlew' -print -quit)"
+          test -n "$WRAPPER"
+          PROJECT_DIR="$(dirname "$WRAPPER")"
+          test -f "$PROJECT_DIR/settings.gradle" -o -f "$PROJECT_DIR/settings.gradle.kts"
+          chmod +x "$WRAPPER"
+          echo "dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Integrate the current MANA self-development runtime
+        working-directory: ${{ steps.project.outputs.dir }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARGET="app/src/main/java/com/mana/os/integration"
+          mkdir -p "$TARGET"
+          install -m 0644 "$GITHUB_WORKSPACE/integration/ManaGenesis.kt" "$TARGET/ManaGenesis.kt"
+          install -m 0644 "$GITHUB_WORKSPACE/integration/AndroidSelfDevelopment.kt" "$TARGET/AndroidSelfDevelopment.kt"
+          install -m 0644 "$GITHUB_WORKSPACE/integration/ManaDevelopmentPipeline.kt" "$TARGET/ManaDevelopmentPipeline.kt"
+
+      - name: Validate and apply proposal patch in isolated workspace
+        shell: bash
+        env:
+          PROJECT_DIR: ${{ steps.project.outputs.dir }}
+          PATCH_FILE: ${{ steps.proposal.outputs.patch }}
+          CHANGE_SCOPE: ${{ inputs.change_scope }}
+          OWNER_APPROVAL: ${{ inputs.owner_approval }}
+        run: |
+          set -euo pipefail
+          python3 tools/mana_patch_gate.py \
+            --project-dir "$PROJECT_DIR" \
+            --patch "$GITHUB_WORKSPACE/$PATCH_FILE" \
+            --scope "$CHANGE_SCOPE" \
+            --owner-approval "$OWNER_APPROVAL"
+
+      - name: Run read-only MANA Code Intelligence analysis
+        shell: bash
+        env:
+          PROJECT_DIR: ${{ steps.project.outputs.dir }}
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/tools/mana_code_intelligence.py" \
+            --source "$PROJECT_DIR" \
+            --out "$GITHUB_WORKSPACE/output/code-intelligence"
+
+      - name: Draft optional AI patch from static findings (review only)
+        shell: bash
+        env:
+          PROJECT_DIR: ${{ steps.project.outputs.dir }}
+          MANA_AI_API_KEY: ${{ secrets.MANA_AI_API_KEY }}
+          MANA_AI_MODEL: ${{ vars.MANA_AI_MODEL }}
+          MANA_AI_API_URL: ${{ vars.MANA_AI_API_URL }}
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/tools/mana_ai_code_author.py" \
+            --report "$GITHUB_WORKSPACE/output/code-intelligence/MANA_CODE_INTELLIGENCE.json" \
+            --source "$PROJECT_DIR" \
+            --out "$GITHUB_WORKSPACE/output/ai-code-author"
+
+      - name: Run project tests and build debug APK
+        working-directory: ${{ steps.project.outputs.dir }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon --stacktrace test assembleDebug
+
+      - name: Evaluate MANA test and static-analysis evidence
+        if: success()
+        shell: bash
+        env:
+          PROJECT_DIR: ${{ steps.project.outputs.dir }}
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/tools/mana_build_quality_gate.py" \
+            --tests "$PROJECT_DIR" \
+            --analysis "$GITHUB_WORKSPACE/output/code-intelligence/MANA_CODE_INTELLIGENCE.json" \
+            --out "$GITHUB_WORKSPACE/output/quality-gate"
+
+      - name: Collect isolated build result and report
+        if: always()
+        shell: bash
+        env:
+          PROPOSAL_ID: ${{ inputs.proposal_id }}
+          CHANGE_SCOPE: ${{ inputs.change_scope }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          mkdir -p output
+          {
+            echo "# MANA isolated patch report"
+            echo
+            echo "- Proposal: $PROPOSAL_ID"
+            echo "- Scope: $CHANGE_SCOPE"
+            echo "- CI job result: $JOB_STATUS"
+            echo "- Workspace: isolated GitHub Actions runner"
+            echo "- Automatic merge/install: no"
+          } > output/MANA_PATCH_REPORT.md
+          if [ -d "${{ steps.project.outputs.dir }}/app/build/reports/tests" ]; then
+            cp -R "${{ steps.project.outputs.dir }}/app/build/reports/tests" output/unit-test-reports || true
+          fi
+          find "${{ steps.project.outputs.dir }}" -type f -path "*/build/outputs/apk/*/*.apk" -exec cp {} output/ \; || true
+
+      - name: Upload patch report and APK (if built)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ManaOS-patch-${{ inputs.proposal_id }}-${{ github.run_number }}
+          path: output/**
+          if-no-files-found: warn
+          retention-days: 14

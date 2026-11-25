@@ -1,11 +1,20 @@
 name: ManaOS Android APK Build
 
 on:
-  push:
+  pull_request:
     branches: [main]
     paths:
-      - ".github/workflows/manaos-android-build.yml"
+      - ".github/workflows/**"
       - "docs/**"
+      - "integration/**"
+      - "tools/**"
+  push:
+    branches: [main, mana-avatar-voice-server]
+    paths:
+      - ".github/workflows/**"
+      - "docs/**"
+      - "integration/**"
+      - "tools/**"
   workflow_dispatch:
 
 permissions:
@@ -13,120 +22,248 @@ permissions:
   actions: read
 
 concurrency:
-  group: manaos-android-build
-  cancel-in-progress: false
+  group: manaos-android-build-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
+    name: Test, analyze and build ManaOS debug APK
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout build repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+
+      - name: Compile MANA tooling and run regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            tools/mana_code_intelligence.py \
+            tools/mana_ai_code_author.py \
+            tools/mana_patch_gate.py \
+            tools/mana_build_quality_gate.py \
+            tools/prepare_android_project.py
+          python3 -m unittest discover -s tools/tests -v
 
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: '17'
 
-      - name: Download source archive
+      - name: Download and unpack the MANA source archive
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p source
-          curl -fL --retry 3 \
+          curl --fail --location --retry 3 --retry-all-errors \
             "https://raw.githubusercontent.com/korumart13-commits/MANA-Genesis-4.0./main/MANA_Genesis_4_0_MIRROR_READY_SOURCE%282%29.zip" \
-            -o source/manaos-source.zip
+            --output source/manaos-source.zip
+          test -s source/manaos-source.zip
           unzip -q source/manaos-source.zip -d source/unpacked
 
-      - name: Locate Android Gradle project
+      - name: Locate the intended Android project
         id: project
         shell: bash
         run: |
           set -euo pipefail
-          # Select the intended unified Android project, never a historical sample.
-          WRAPPER="$(find "$GITHUB_WORKSPACE/source/unpacked" -type f -path '*/existing_aosp/MANA_OS_3_0_Android_Project/gradlew' -print -quit)"
-          if [ -z "$WRAPPER" ]; then
-            echo "Expected project existing_aosp/MANA_OS_3_0_Android_Project was not found."
+          wrapper="$(find "$GITHUB_WORKSPACE/source/unpacked" -type f -path '*/existing_aosp/MANA_OS_3_0_Android_Project/gradlew' -print -quit)"
+          if [ -z "$wrapper" ]; then
+            echo "Expected unified MANA Android project was not found in the source archive."
             find "$GITHUB_WORKSPACE/source/unpacked" -type f \( -name gradlew -o -name settings.gradle -o -name settings.gradle.kts \) -print | head -200
             exit 1
           fi
-          PROJECT_DIR="$(dirname "$WRAPPER")"
-          if [ ! -f "$PROJECT_DIR/settings.gradle" ] && [ ! -f "$PROJECT_DIR/settings.gradle.kts" ]; then
-            echo "Selected directory has no Gradle settings file: $PROJECT_DIR"
+          project_dir="$(dirname "$wrapper")"
+          if [ ! -f "$project_dir/settings.gradle" ] && [ ! -f "$project_dir/settings.gradle.kts" ]; then
+            echo "The selected directory has no Gradle settings file: $project_dir"
             exit 1
           fi
-          echo "dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
-          chmod +x "$WRAPPER"
-          echo "Using project: $PROJECT_DIR"
+          chmod +x "$wrapper"
+          echo "dir=$project_dir" >> "$GITHUB_OUTPUT"
+          echo "Using Android project: $project_dir"
 
-      - name: Bundle MANA OS project license into app assets
-        working-directory: ${{ steps.project.outputs.dir }}
+      - name: Find latest successful MANA avatar asset build
+        id: avatar
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p app/src/main/assets
-          cp "$GITHUB_WORKSPACE/docs/MANAOS_PERSONAL_LICENSE_1.0.md" app/src/main/assets/manaos-license.txt
-          test -s app/src/main/assets/manaos-license.txt
-          echo "Bundled MANA OS Personal Use License 1.0 into app assets."
+          branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          run_id="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/mana-avatar-ci.yml/runs?branch=$branch&status=success&per_page=10" --jq '.workflow_runs[0].id')"
+          test -n "$run_id" && test "$run_id" != "null"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
 
-      - name: Repair malformed welcome string in source copy
-        working-directory: ${{ steps.project.outputs.dir }}
+      - name: Download generated MANA avatar GLB
+        uses: actions/download-artifact@v4
+        with:
+          name: MANA-original-avatar-GLB
+          run-id: ${{ steps.avatar.outputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          path: avatar-build
+
+      - name: Download pinned local Three.js renderer
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
+          mkdir -p "$GITHUB_WORKSPACE/avatar-renderer/examples/jsm/loaders" "$GITHUB_WORKSPACE/avatar-renderer/examples/jsm/utils"
+          curl --fail --location --retry 3 "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js" --output "$GITHUB_WORKSPACE/avatar-renderer/three.module.js"
+          curl --fail --location --retry 3 "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.core.js" --output "$GITHUB_WORKSPACE/avatar-renderer/three.core.js"
+          curl --fail --location --retry 3 "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js" --output "$GITHUB_WORKSPACE/avatar-renderer/examples/jsm/loaders/GLTFLoader.js"
+          curl --fail --location --retry 3 "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/utils/BufferGeometryUtils.js" --output "$GITHUB_WORKSPACE/avatar-renderer/examples/jsm/utils/BufferGeometryUtils.js"
+          test -s "$GITHUB_WORKSPACE/avatar-build/mana_avatar.glb"
+          test -s "$GITHUB_WORKSPACE/avatar-renderer/three.module.js"
+          test -s "$GITHUB_WORKSPACE/avatar-renderer/three.core.js"
+          test -s "$GITHUB_WORKSPACE/avatar-renderer/examples/jsm/loaders/GLTFLoader.js"
+          test -s "$GITHUB_WORKSPACE/avatar-renderer/examples/jsm/utils/BufferGeometryUtils.js"
 
-          file = Path("app/src/main/java/com/mana/os/app/MainActivity.kt")
-          source = file.read_text(encoding="utf-8")
-          broken = 'base("MANA", "Первоначальная настройка\nЯ стану твоим главным интерфейсом, сохраняя Android в качестве системной основы.")'
-          fixed = 'base("MANA", "Первоначальная настройка. Я стану твоим главным интерфейсом, сохраняя Android в качестве системной основы.")'
-
-          if broken in source:
-              source = source.replace(broken, fixed, 1)
-              file.write_text(source, encoding="utf-8")
-              print("Fixed the broken multiline Kotlin string.")
-          elif fixed in source:
-              print("Welcome string is already fixed; no change needed.")
-          else:
-              raise SystemExit("Expected welcome string was not found; refusing to patch an unrelated source file.")
-
-          check = file.read_text(encoding="utf-8")
-          if fixed not in check:
-              raise SystemExit("Post-patch verification failed.")
-          print("Post-patch verification passed.")
-
-          PY
-      - name: Verify repaired Kotlin source
-        working-directory: ${{ steps.project.outputs.dir }}
+      - name: Integrate MANA runtime and dashboard into the temporary source copy
         shell: bash
+        env:
+          PROJECT_DIR: ${{ steps.project.outputs.dir }}
+          # Offline build profile: no cloud gateway or hosted TTS is required.
+          MANA_GATEWAY_ENDPOINT: ""
+          MANA_GATEWAY_HOST: ""
+          MANA_TTS_ENDPOINT: ""
+          MANA_TTS_HOST: ""
         run: |
           set -euo pipefail
-          FILE="app/src/main/java/com/mana/os/app/MainActivity.kt"
-          echo "----- $FILE lines 45-70 -----"
-          nl -ba "$FILE" | sed -n '45,70p'
-          echo "----- end source excerpt -----"
+          python3 tools/prepare_android_project.py \
+            --project-dir "$PROJECT_DIR" \
+            --integration-dir "$GITHUB_WORKSPACE/integration" \
+            --license-file "$GITHUB_WORKSPACE/docs/MANAOS_PERSONAL_LICENSE_1.0.md" \
+            --avatar-file "$GITHUB_WORKSPACE/avatar-build/mana_avatar.glb" \
+            --avatar-renderer-dir "$GITHUB_WORKSPACE/avatar-renderer"
 
-      - name: Set up Gradle cache
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Build debug APK
-        working-directory: ${{ steps.project.outputs.dir }}
+      - name: Create source inventory and audit archive
         shell: bash
+        env:
+          PROJECT_DIR: ${{ steps.project.outputs.dir }}
         run: |
           set -euo pipefail
-          ./gradlew --no-daemon --continue --stacktrace assembleDebug
+          mkdir -p source-audit
+          {
+            echo "# MANA Android source inventory"
+            echo
+            echo "- Commit: $GITHUB_SHA"
+            echo "- Project: $PROJECT_DIR"
+            echo
+            echo "## Gradle modules"
+            grep -R --include='settings.gradle' --include='settings.gradle.kts' -nE 'include|project\(' "$PROJECT_DIR" || true
+            echo
+            echo "## Kotlin, Java, AIDL, manifests and Gradle files"
+            find "$PROJECT_DIR" -type f \( -name '*.kt' -o -name '*.java' -o -name '*.aidl' -o -name 'AndroidManifest.xml' -o -name '*.gradle' -o -name '*.gradle.kts' \) -not -path '*/build/*' | sort
+          } > source-audit/MANAOS_SOURCE_INVENTORY.md
+          tar -czf source-audit/MANAOS_ANDROID_SOURCE.tar.gz \
+            --exclude='*/build' --exclude='.gradle' -C "$PROJECT_DIR" .
+          test -s source-audit/MANAOS_SOURCE_INVENTORY.md
+          test -s source-audit/MANAOS_ANDROID_SOURCE.tar.gz
 
-      - name: Collect APKs
+      - name: Upload source audit package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ManaOS-source-audit
+          path: source-audit/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Run read-only MANA Code Intelligence
+        shell: bash
+        env:
+          PROJECT_DIR: ${{ steps.project.outputs.dir }}
+        run: |
+          set -euo pipefail
+          python3 tools/mana_code_intelligence.py \
+            --source "$PROJECT_DIR" \
+            --out code-intelligence
+          test -s code-intelligence/MANA_CODE_INTELLIGENCE.json
+          test -s code-intelligence/MANA_CODE_INTELLIGENCE.md
+
+      - name: Upload MANA Code Intelligence report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ManaOS-code-intelligence
+          path: code-intelligence/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Draft optional AI code proposal (review only)
+        shell: bash
+        env:
+          PROJECT_DIR: ${{ steps.project.outputs.dir }}
+          MANA_AI_API_KEY: ${{ secrets.MANA_AI_API_KEY }}
+          MANA_AI_MODEL: ${{ vars.MANA_AI_MODEL }}
+          MANA_AI_API_URL: ${{ vars.MANA_AI_API_URL }}
+        run: |
+          set -euo pipefail
+          python3 tools/mana_ai_code_author.py \
+            --report code-intelligence/MANA_CODE_INTELLIGENCE.json \
+            --source "$PROJECT_DIR" \
+            --out ai-code-author
+          test -s ai-code-author/MANA_AI_PATCH_REQUEST.md
+          test -s ai-code-author/MANA_AI_AUTHOR_REPORT.md
+
+      - name: Upload MANA AI Code Author proposal
+        uses: actions/upload-artifact@v4
+        with:
+          name: ManaOS-ai-code-author
+          path: ai-code-author/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Run Android unit tests and assemble debug APK
+        working-directory: ${{ steps.project.outputs.dir }}
+        shell: bash
+        env:
+          GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2
+        run: |
+          set -euo pipefail
+          # Maven Central may temporarily throttle CI with HTTP 429. Retry the
+          # complete dependency resolution/build with bounded concurrency.
+          for attempt in 1 2 3; do
+            echo "Android build attempt ${attempt}/3"
+            if ./gradlew --no-daemon --max-workers=2 --stacktrace test assembleDebug; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              delay=$((attempt * 30))
+              echo "Gradle failed; retrying after ${delay}s (often transient repository throttling)."
+              sleep "$delay"
+            fi
+          done
+          echo "Android build failed after three attempts."
+          exit 1
+
+      - name: Evaluate build and static-analysis evidence
+        if: always()
+        shell: bash
+        env:
+          PROJECT_DIR: ${{ steps.project.outputs.dir }}
+        run: |
+          set -euo pipefail
+          if [ -s code-intelligence/MANA_CODE_INTELLIGENCE.json ]; then
+            python3 tools/mana_build_quality_gate.py \
+              --tests "$PROJECT_DIR" \
+              --analysis code-intelligence/MANA_CODE_INTELLIGENCE.json \
+              --out quality-gate
+          else
+            mkdir -p quality-gate
+            printf '%s\n' '{"status":"NEEDS_REVIEW","reason":"Static analysis did not complete; no build approval is implied."}' > quality-gate/MANA_BUILD_QUALITY.json
+            printf '%s\n' '# MANA Build Quality Gate' '' '- Status: NEEDS_REVIEW' '- Static analysis did not complete.' > quality-gate/MANA_BUILD_QUALITY.md
+          fi
+
+      - name: Collect debug APK
         if: success()
         shell: bash
+        env:
+          PROJECT_DIR: ${{ steps.project.outputs.dir }}
         run: |
           set -euo pipefail
-          mkdir -p "$GITHUB_WORKSPACE/output"
-          find "${{ steps.project.outputs.dir }}" -type f -path "*/build/outputs/apk/*/*.apk" -exec cp {} "$GITHUB_WORKSPACE/output/" \;
-          test -n "$(find "$GITHUB_WORKSPACE/output" -type f -name '*.apk' -print -quit)"
+          mkdir -p output
+          find "$PROJECT_DIR" -type f -path '*/build/outputs/apk/*/*.apk' -exec cp {} output/ \;
+          test -n "$(find output -type f -name '*.apk' -print -quit)"
 
       - name: Upload debug APK artifact
         if: success()
@@ -135,4 +272,15 @@ jobs:
           name: ManaOS-debug-APK
           path: output/*.apk
           if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload build reports and quality evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ManaOS-build-evidence
+          path: |
+            quality-gate/*
+            **/build/reports/tests/**
+          if-no-files-found: warn
           retention-days: 14

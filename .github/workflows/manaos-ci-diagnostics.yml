@@ -1,0 +1,60 @@
+name: MANA CI Diagnostics
+
+on:
+  push:
+    branches:
+      - mana-foundation-audit
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manaos-ci-diagnostics-v2-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate workflow syntax and tooling tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Go for actionlint
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.x'
+          cache: false
+
+      - name: Install actionlint
+        shell: bash
+        run: |
+          set -euo pipefail
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          "$(go env GOPATH)/bin/actionlint" -version
+
+      - name: Lint every GitHub Actions workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          actionlint -color -verbose .github/workflows/*.yml
+
+      - name: Compile Python tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            tools/mana_code_intelligence.py \
+            tools/mana_ai_code_author.py \
+            tools/mana_patch_gate.py \
+            tools/mana_build_quality_gate.py \
+            tools/prepare_android_project.py
+
+      - name: Run Python regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tools/tests -v
