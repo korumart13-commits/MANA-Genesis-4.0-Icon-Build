@@ -108,7 +108,7 @@ def main() -> None:
     target_dir.mkdir(parents=True, exist_ok=True)
     write_gateway_deployment_config(project, os.environ.get("MANA_GATEWAY_ENDPOINT", ""), os.environ.get("MANA_GATEWAY_HOST", ""))
     write_voice_deployment_config(project, os.environ.get("MANA_TTS_ENDPOINT", ""), os.environ.get("MANA_TTS_HOST", ""))
-    for name in ("ManaGenesis.kt", "AndroidSelfDevelopment.kt", "ManaDevelopmentPipeline.kt", "ManaCognitiveRuntime.kt", "ManaLocalCognitiveMemory.kt", "ManaDialogueState.kt", "ManaDefaultCognitivePolicy.kt", "ManaGatewayReasoningModel.kt", "ManaAndroidGatewayCredentialStore.kt", "ManaGatewayChatService.kt", "ManaVoiceGatewayClient.kt", "ManaReadOnlyToolRegistry.kt", "ManaAndroidReadOnlyTools.kt", "ManaOwnerApprovalBroker.kt", "ManaApprovedActionValidation.kt", "ManaAndroidApprovedActionExecutor.kt"):
+    for name in ("ManaGenesis.kt", "ManaEngine.kt", "ManaSystemKernel.kt", "AndroidSelfDevelopment.kt", "ManaDevelopmentPipeline.kt", "ManaCognitiveRuntime.kt", "ManaLocalCognitiveMemory.kt", "ManaDialogueState.kt", "ManaDefaultCognitivePolicy.kt", "ManaGatewayReasoningModel.kt", "ManaAndroidGatewayCredentialStore.kt", "ManaGatewayChatService.kt", "ManaVoiceGatewayClient.kt", "ManaReadOnlyToolRegistry.kt", "ManaAndroidReadOnlyTools.kt", "ManaOwnerApprovalBroker.kt", "ManaApprovedActionValidation.kt", "ManaAndroidApprovedActionExecutor.kt"):
         source = integration / name
         if not source.is_file() or source.stat().st_size == 0:
             raise SystemExit(f"Required integration source is missing or empty: {source}")
@@ -174,6 +174,11 @@ def main() -> None:
     test_target = project / "core/src/test/java/com/mana/os/core/ManaCoreTest.kt"
     test_target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(test_source, test_target)
+
+    engine_test_source = integration / "tests" / "ManaEngineTest.kt"
+    if not engine_test_source.is_file() or engine_test_source.stat().st_size == 0:
+        raise SystemExit(f"Required MANA Engine unit test source is missing or empty: {engine_test_source}")
+    shutil.copy2(engine_test_source, app_test_target.parent / "ManaEngineTest.kt")
 
     cognitive_test_source = integration / "tests" / "ManaCognitiveRuntimeTest.kt"
     if not cognitive_test_source.is_file() or cognitive_test_source.stat().st_size == 0:
