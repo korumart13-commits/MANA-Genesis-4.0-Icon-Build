@@ -64,6 +64,17 @@ class ManaReadOnlyToolRegistryTest {
     }
 
     @Test
+    fun audioStatusIsAnExplicitReadOnlyCapability() {
+        val registry = ManaReadOnlyToolRegistry(listOf(
+            ManaReadOnlyToolDefinition("device.read_audio_status") { _, _ ->
+                ManaCognitiveToolResult(true, "Режим звука доступен.")
+            }
+        ))
+        assertTrue(registry.availableTools().contains("device.read_audio_status"))
+        assertTrue(registry.execute(ManaCognitiveAction("device.read_audio_status")).success)
+    }
+
+    @Test
     fun controlCharactersAndOversizedArgumentsAreRejected() {
         var calls = 0
         val registry = ManaReadOnlyToolRegistry(listOf(
