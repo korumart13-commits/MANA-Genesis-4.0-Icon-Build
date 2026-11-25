@@ -48,6 +48,11 @@ class ManaToolTests(unittest.TestCase):
         self.assertIn('actionButton("Память Маны") { showMemory() }', home)
         self.assertIn("memory.clear()", home)
         self.assertIn("Очистить локальную память?", home)
+        self.assertIn("private fun recordConversation(userText: String, assistantText: String)", home)
+        self.assertIn("dialogueState.add(", home)
+        self.assertIn('kind = "chat_exchange"', home)
+        self.assertIn("recordConversation(text, offlineReply)", home)
+        self.assertIn("recordConversation(text, it)", home)
 
     def test_dialogue_state_is_bounded_and_packaged(self):
         integration = Path(__file__).resolve().parents[2] / "integration"
