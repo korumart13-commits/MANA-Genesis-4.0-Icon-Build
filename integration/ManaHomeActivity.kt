@@ -143,6 +143,8 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
             startActivity(Intent(this, ManaLifeManagerActivity::class.java))
         }
         content.addView(lifeManagerButton, marginTop(8))
+        val modelButton = actionButton("Установить локальный ИИ-движок") { chooseLocalModel() }
+        content.addView(modelButton, marginTop(8))
         val memoryButton = actionButton("Память Маны") { showMemory() }
         content.addView(memoryButton, marginTop(8))
         val settingsButton = actionButton("Настройки и разрешения Android") {
@@ -198,8 +200,8 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
     private fun sendMessage() {
         val text = message.text.toString().trim()
         if (text.isEmpty()) return
-        if (gatewayChat.isConfigured()) {
-            chatLog.text = "Ты: $text\n\nМана: отправляю запрос в защищённый шлюз…"
+        if (gatewayChat.isConfigured() || gatewayChat.canRespondLocally()) {
+            chatLog.text = "Ты: $text\n\nМана: " + if (gatewayChat.isConfigured()) "подключаю интеллект MANA…" else "запускаю локальную модель на телефоне…"
             message.setText("")
             (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
                 .hideSoftInputFromWindow(message.windowToken, 0)
@@ -214,7 +216,7 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
                     if (approvals.isNotEmpty()) showOwnerApprovalDialogs(approvals)
                 }
             }
-            if (!started) toast("Шлюз MANA не настроен. Работаю локально.")
+            if (!started) toast("Нет доступного ИИ-провайдера. Установи локальную модель или настрой шлюз MANA.")
             return
         }
         val offlineReply = "Сейчас я работаю локально. Облачный чат не подключён, поэтому сообщение не отправлено."
@@ -328,6 +330,24 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
         if (requestCode == 704) {
             if (android.provider.Settings.canDrawOverlays(this)) awakenMana()
             else toast("Разрешение поверх окон не выдано.")
+        }
+        if (requestCode == 705 && resultCode == RESULT_OK) {
+            val uri = data?.data
+            if (uri != null) {
+                try {
+                    val modelDir = java.io.File(filesDir, com.mana.os.integration.ManaLiteRtLmRuntime.MODEL_DIRECTORY)
+                    if (!modelDir.exists() && !modelDir.mkdirs()) error("Не удалось создать каталог модели.")
+                    val target = java.io.File(modelDir, com.mana.os.integration.ManaLiteRtLmRuntime.MODEL_FILE_NAME)
+                    contentResolver.openInputStream(uri).use { input ->
+                        requireNotNull(input) { "Не удалось прочитать выбранный файл." }
+                        target.outputStream().use { output -> input.copyTo(output) }
+                    }
+                    require(target.length() >= 1_000_000L) { "Файл слишком мал для языковой модели. Выбери совместимую .litertlm модель." }
+                    toast("Файл модели сохранён. Перезапусти MANA, чтобы загрузить локальный движок.")
+                } catch (error: Exception) {
+                    toast("Не удалось установить модель: ${error.message}")
+                }
+            }
         }
         if (requestCode == 703 && resultCode == RESULT_OK) {
             val spoken = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
@@ -601,6 +621,14 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
         AlertDialog.Builder(this).setTitle("Приложения телефона").setItems(names) { _, which ->
             pm.getLaunchIntentForPackage(apps[which].activityInfo.packageName)?.let { startActivity(it) }
         }.setNegativeButton("Закрыть", null).show()
+    }
+
+    private fun chooseLocalModel() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+        }
+        startActivityForResult(intent, 705)
     }
 
     private fun showMemory() {
