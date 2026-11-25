@@ -289,7 +289,8 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
                     .setMessage("Все сохранённые записи памяти MANA на этом телефоне будут удалены. Это действие нельзя отменить.")
                     .setPositiveButton("Очистить") { _, _ ->
                         memory.clear()
-                        toast("Локальная память очищена.")
+                        dialogueState.clear()
+                        toast("Локальная память и текущий контекст диалога очищены.")
                     }
                     .setNegativeButton("Отмена", null)
                     .show()
