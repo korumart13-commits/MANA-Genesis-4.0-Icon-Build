@@ -266,6 +266,21 @@ class ManaToolTests(unittest.TestCase):
         self.assertIn('launcher_visibility', prepare)
         self.assertIn('ManaApprovedActionValidationTest.kt', prepare)
 
+    def test_android_settings_navigation_is_fixed_and_owner_confirmed(self):
+        integration = Path(__file__).resolve().parents[2] / "integration"
+        validation = (integration / "ManaApprovedActionValidation.kt").read_text(encoding="utf-8")
+        executor = (integration / "ManaAndroidApprovedActionExecutor.kt").read_text(encoding="utf-8")
+        policy = (integration / "ManaDefaultCognitivePolicy.kt").read_text(encoding="utf-8")
+        home = (integration / "ManaHomeActivity.kt").read_text(encoding="utf-8")
+        self.assertIn('"settings.open_page"', policy)
+        self.assertIn('action.arguments.keys != setOf("page")', validation)
+        self.assertIn('ManaSettingsPage.values().firstOrNull', validation)
+        self.assertIn('Intent(page.androidAction)', executor)
+        self.assertIn('broker.consumeForExactAction(token, action)', executor)
+        self.assertLess(executor.index('broker.consumeForExactAction(token, action)'), executor.index('app.startActivity(launchIntent)'))
+        self.assertIn('supportedSettingsPage', home)
+        self.assertIn('MANA не будет менять переключатели или параметры автоматически', home)
+
     def test_app_search_is_narrow_and_never_enumerates_full_inventory(self):
         integration = Path(__file__).resolve().parents[2] / "integration"
         source = (integration / "ManaAndroidReadOnlyTools.kt").read_text(encoding="utf-8")
