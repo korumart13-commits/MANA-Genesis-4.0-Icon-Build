@@ -102,8 +102,9 @@ class ManaDreamConsolidation(
                     ManaDreamItemKind.DERIVED_FILE_COPY -> store.forgetDerivedFileCopy(item.id)
                     else -> Unit
                 }
-                ManaDreamDecision.REMOVE_INDEX_ONLY ->
+                ManaDreamDecision.REMOVE_INDEX_ONLY -> {
                     if (item.kind == ManaDreamItemKind.SEARCH_INDEX) store.removeSearchIndex(item.id)
+                }
                 else -> Unit
             }
         }
