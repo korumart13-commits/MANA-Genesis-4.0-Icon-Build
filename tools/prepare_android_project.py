@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import shutil
 from pathlib import Path
+from urllib.parse import urlsplit
 
 
 def replace_once(source: str, old: str, new: str, label: str) -> str:
@@ -14,6 +17,39 @@ def replace_once(source: str, old: str, new: str, label: str) -> str:
     if count == 0 and new in source:
         return source
     raise SystemExit(f"Refusing unsafe Android source edit ({label}): expected one anchor, found {count}.")
+
+
+def write_gateway_deployment_config(project: Path, endpoint: str, expected_host: str) -> None:
+    endpoint = endpoint.strip()
+    expected_host = expected_host.strip().lower()
+    if bool(endpoint) != bool(expected_host):
+        raise SystemExit("MANA_GATEWAY_ENDPOINT and MANA_GATEWAY_HOST must be configured together.")
+    if endpoint:
+        parsed = urlsplit(endpoint)
+        if (
+            parsed.scheme.lower() != "https"
+            or not parsed.hostname
+            or parsed.hostname.lower() != expected_host
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.query
+            or parsed.fragment
+            or parsed.path != "/v1/mana/respond"
+            or parsed.port not in (None, 443)
+        ):
+            raise SystemExit("MANA gateway build configuration failed HTTPS host/route validation.")
+    output = project / "app/src/main/java/com/mana/os/integration/ManaGatewayDeploymentConfig.kt"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
+        "package com.mana.os.integration\\n\\n"
+        "/** Generated from trusted build variables; blank values intentionally mean offline mode. */\\n"
+        "object ManaGatewayDeploymentConfig {\\n"
+        f"    const val ENDPOINT = {json.dumps(endpoint)}\\n"
+        f"    const val EXPECTED_HOST = {json.dumps(expected_host)}\\n"
+        "    fun isConfigured(): Boolean = ENDPOINT.isNotBlank() && EXPECTED_HOST.isNotBlank()\\n"
+        "}\\n",
+        encoding="utf-8",
+    )
 
 
 def main() -> None:
@@ -35,6 +71,7 @@ def main() -> None:
 
     target_dir = project / "app/src/main/java/com/mana/os/integration"
     target_dir.mkdir(parents=True, exist_ok=True)
+    write_gateway_deployment_config(project, os.environ.get("MANA_GATEWAY_ENDPOINT", ""), os.environ.get("MANA_GATEWAY_HOST", ""))
     for name in ("ManaGenesis.kt", "AndroidSelfDevelopment.kt", "ManaDevelopmentPipeline.kt", "ManaCognitiveRuntime.kt", "ManaLocalCognitiveMemory.kt", "ManaDialogueState.kt", "ManaDefaultCognitivePolicy.kt", "ManaGatewayReasoningModel.kt"):
         source = integration / name
         if not source.is_file() or source.stat().st_size == 0:
