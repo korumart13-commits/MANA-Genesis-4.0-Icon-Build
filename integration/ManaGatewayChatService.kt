@@ -56,14 +56,14 @@ class ManaGatewayChatService(
 
     fun send(message: String, callback: (answer: String?, error: String?, approvals: List<ManaApprovalRequest>) -> Unit): Boolean {
         if (message.isBlank()) return false
-        val ownsModelDownload = !isConfigured() && !hasLocalModel()
+        val ownsModelDownload = !hasLocalModel()
         if (ownsModelDownload && !modelDownloadInProgress.compareAndSet(false, true)) return false
         stop()
         val signal = ManaCancellationSignal()
         activeSignal = signal
         Thread({
             try {
-                if (!isConfigured() && !hasLocalModel()) ensureLocalModel()
+                if (!hasLocalModel()) ensureLocalModel()
                 val config = ManaGatewayConfig(
                     endpoint = ManaGatewayDeploymentConfig.ENDPOINT,
                     expectedHost = ManaGatewayDeploymentConfig.EXPECTED_HOST
@@ -86,7 +86,7 @@ class ManaGatewayChatService(
                 val model = ManaEngine(
                     gpt = gptProvider,
                     local = localProvider,
-                    policy = ManaEnginePolicy(preferGpt = true, allowFallback = true)
+                    policy = ManaEnginePolicy(preferLocal = true, allowCloudFallback = true, allowFallback = true)
                 )
                 val runtime = ManaCognitiveRuntime(
                     model = model,
