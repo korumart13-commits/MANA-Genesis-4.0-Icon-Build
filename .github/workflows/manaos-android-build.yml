@@ -271,6 +271,26 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Run read-only MANA Code Intelligence analysis
+        shell: bash
+        env:
+          PROJECT_DIR: ${{ steps.project.outputs.dir }}
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/tools/mana_code_intelligence.py" \
+            --source "$PROJECT_DIR" \
+            --out "$GITHUB_WORKSPACE/code-intelligence"
+          test -s "$GITHUB_WORKSPACE/code-intelligence/MANA_CODE_INTELLIGENCE.json"
+          test -s "$GITHUB_WORKSPACE/code-intelligence/MANA_CODE_INTELLIGENCE.md"
+
+      - name: Upload MANA Code Intelligence report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ManaOS-code-intelligence
+          path: code-intelligence/*
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
 
