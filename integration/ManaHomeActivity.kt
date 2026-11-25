@@ -30,6 +30,7 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
     private var textToSpeech: TextToSpeech? = null
     private var ttsReady = false
     private var avatarWebView: WebView? = null
+    private var identityObserver: AutoCloseable? = null
     private var voicePlayer: MediaPlayer? = null
     private val voiceClient by lazy { com.mana.os.integration.ManaVoiceGatewayClient(this) }
     private val prefs by lazy { getSharedPreferences("mana_setup", MODE_PRIVATE) }
@@ -55,6 +56,15 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
         window.statusBarColor = bg
         window.navigationBarColor = bg
         renderHome()
+        identityObserver = com.mana.os.integration.ManaIdentityState.observe { snapshot ->
+            runOnUiThread {
+                val state = org.json.JSONObject.quote(snapshot.state.name)
+                val detail = org.json.JSONObject.quote(snapshot.detail.orEmpty())
+                avatarWebView?.evaluateJavascript(
+                    "window.ManaAvatar && window.ManaAvatar.setPresenceState($state, $detail);", null
+                )
+            }
+        }
     }
 
     private fun renderHome() {
@@ -278,6 +288,7 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ru-RU")
             putExtra(RecognizerIntent.EXTRA_PROMPT, "Говори, я слушаю")
         }
+        com.mana.os.integration.ManaIdentityState.setState(com.mana.os.integration.ManaPresenceState.LISTENING, "Слушаю голосовую команду")
         try { startActivityForResult(intent, 703) }
         catch (_: Exception) { toast("На устройстве нет доступного распознавания речи.") }
     }
@@ -312,6 +323,7 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
                 }, "mana-model-import").start()
             }
         }
+        if (requestCode == 703) com.mana.os.integration.ManaIdentityState.setState(com.mana.os.integration.ManaPresenceState.IDLE)
         if (requestCode == 703 && resultCode == RESULT_OK) {
             val spoken = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
             if (!spoken.isNullOrBlank()) {
@@ -402,14 +414,15 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
     }
 
     private fun setAvatarSpeaking(speaking: Boolean) {
-        runOnUiThread {
-            avatarWebView?.evaluateJavascript(
-                "window.ManaAvatar && window.ManaAvatar.setSpeaking($speaking);", null
-            )
-        }
+        com.mana.os.integration.ManaIdentityState.setState(
+            if (speaking) com.mana.os.integration.ManaPresenceState.SPEAKING
+            else com.mana.os.integration.ManaPresenceState.IDLE
+        )
     }
 
     override fun onDestroy() {
+        identityObserver?.close()
+        identityObserver = null
         gatewayChat.close()
         voiceClient.cancel()
         runCatching { voicePlayer?.stop() }
