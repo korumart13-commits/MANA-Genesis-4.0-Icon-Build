@@ -46,6 +46,50 @@ class ManaCognitiveRuntimeTest {
     }
 
     @Test
+    fun stopDuringModelCallPreventsToolExecutionAndMemoryWrite() {
+        val signal = ManaCancellationSignal()
+        var cancellationCallbacks = 0
+        var toolCalls = 0
+        var rememberCalls = 0
+
+        val model = object : ManaCancellableReasoningModel {
+            override fun decide(
+                context: ManaCognitiveContext,
+                control: ManaRuntimeControl
+            ): ManaCognitiveDecision {
+                control.onStop { cancellationCallbacks++ }
+                signal.requestStop()
+                return ManaCognitiveDecision(
+                    actions = listOf(ManaCognitiveAction("should_not_run")),
+                    finalAnswer = "unexpected"
+                )
+            }
+        }
+        val memory = object : ManaCognitiveMemory {
+            override fun recall(query: String, limit: Int): List<ManaCognitiveMemoryEntry> = emptyList()
+            override fun remember(entry: ManaCognitiveMemoryEntry) { rememberCalls++ }
+        }
+        val tools = object : ManaCognitiveTools {
+            override fun availableTools(): List<String> = listOf("should_not_run")
+            override fun execute(action: ManaCognitiveAction): ManaCognitiveToolResult {
+                toolCalls++
+                return ManaCognitiveToolResult(true, "unexpected")
+            }
+        }
+        val policy = object : ManaCognitivePolicy {
+            override fun check(action: ManaCognitiveAction): ManaActionVerdict = ManaActionVerdict.ALLOW
+        }
+
+        val result = ManaCognitiveRuntime(model, memory, tools, policy, control = signal)
+            .respond("Останови операцию", "test-stop-during-model")
+
+        assertEquals("Остановлено по команде владельца.", result.answer)
+        assertEquals(1, cancellationCallbacks)
+        assertEquals(0, toolCalls)
+        assertEquals(0, rememberCalls)
+    }
+
+    @Test
     fun stoppedRuntimeDoesNotCallModelToolsOrMemory() {
         val signal = ManaCancellationSignal().apply { requestStop() }
         var modelCalls = 0
