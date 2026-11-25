@@ -118,6 +118,7 @@ def main() -> None:
         shutil.copy2(integration / "avatar" / "index.html", avatar_assets / "index.html")
         shutil.copy2(renderer_dir / "three.module.js", avatar_assets / "three.module.js")
         shutil.copy2(renderer_dir / "GLTFLoader.js", avatar_assets / "GLTFLoader.js")
+        shutil.copy2(integration / "avatar" / "THREE-LICENSE.txt", avatar_assets / "THREE-LICENSE.txt")
 
     test_source = integration / "tests" / "ManaCoreTest.kt"
     if not test_source.is_file() or test_source.stat().st_size == 0:
