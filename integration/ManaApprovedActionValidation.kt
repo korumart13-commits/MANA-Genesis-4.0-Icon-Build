@@ -14,6 +14,12 @@ enum class ManaSettingsPage(val key: String, val label: String, val androidActio
     DO_NOT_DISTURB("do_not_disturb", "Доступ «Не беспокоить»", android.provider.Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
 }
 
+
+enum class ManaDndFilter(val key: String, val label: String, val androidFilter: Int) {
+    PRIORITY("priority", "Только приоритетные уведомления", android.app.NotificationManager.INTERRUPTION_FILTER_PRIORITY),
+    ALL("all", "Обычные уведомления (выключить «Не беспокоить»)", android.app.NotificationManager.INTERRUPTION_FILTER_ALL)
+}
+
 object ManaApprovedActionValidation {
     fun launchPackage(action: ManaCognitiveAction): String? {
         if (action.name != "apps.launch" || action.arguments.keys != setOf("package_name")) return null
@@ -27,5 +33,11 @@ object ManaApprovedActionValidation {
         if (action.name != "settings.open_page" || action.arguments.keys != setOf("page")) return null
         val key = action.arguments["page"] ?: return null
         return ManaSettingsPage.values().firstOrNull { it.key == key }
+    }
+
+    fun dndFilter(action: ManaCognitiveAction): ManaDndFilter? {
+        if (action.name != "device.set_dnd_filter" || action.arguments.keys != setOf("filter")) return null
+        val key = action.arguments["filter"] ?: return null
+        return ManaDndFilter.values().firstOrNull { it.key == key }
     }
 }
