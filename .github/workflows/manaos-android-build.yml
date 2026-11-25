@@ -90,6 +90,17 @@ jobs:
           test -s "$TARGET"
           echo "Integrated persistent local idea store and first-pass analyzer."
 
+      - name: Integrate auditable MANA development pipeline
+        working-directory: ${{ steps.project.outputs.dir }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARGET="app/src/main/java/com/mana/os/integration/ManaDevelopmentPipeline.kt"
+          mkdir -p "$(dirname "$TARGET")"
+          install -m 0644 "$GITHUB_WORKSPACE/integration/ManaDevelopmentPipeline.kt" "$TARGET"
+          test -s "$TARGET"
+          echo "Integrated persistent proposal lifecycle and owner approval gates."
+
       - name: Add self-development screen to MANA dashboard
         working-directory: ${{ steps.project.outputs.dir }}
         shell: bash
