@@ -6,11 +6,13 @@ on:
     paths:
       - ".github/workflows/manaos-android-build.yml"
       - "docs/**"
+      - "integration/**"
   push:
     branches: [main, mana-foundation-audit]
     paths:
       - ".github/workflows/manaos-android-build.yml"
       - "docs/**"
+      - "integration/**"
   workflow_dispatch:
 
 permissions:
@@ -65,6 +67,17 @@ jobs:
           echo "dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
           chmod +x "$WRAPPER"
           echo "Using project: $PROJECT_DIR"
+
+      - name: Integrate Mana Genesis bootstrap into Android app source
+        working-directory: ${{ steps.project.outputs.dir }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARGET="app/src/main/java/com/mana/os/integration/ManaGenesis.kt"
+          mkdir -p "$(dirname "$TARGET")"
+          install -m 0644 "$GITHUB_WORKSPACE/integration/ManaGenesis.kt" "$TARGET"
+          test -s "$TARGET"
+          echo "Integrated central ManaGenesis bootstrap and self-development contracts."
 
       - name: Bundle MANA OS project license into app assets
         working-directory: ${{ steps.project.outputs.dir }}
