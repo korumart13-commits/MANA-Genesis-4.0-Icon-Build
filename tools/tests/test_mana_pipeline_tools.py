@@ -10,6 +10,12 @@ sys.path.insert(0, str(TOOLS))
 import mana_ai_code_author as author
 
 class ManaToolTests(unittest.TestCase):
+    def test_android_sources_do_not_use_nullable_ifblank_default(self):
+        integration = Path(__file__).resolve().parents[2] / "integration"
+        for source in integration.glob("*.kt"):
+            text = source.read_text(encoding="utf-8")
+            self.assertNotIn("ifBlank { null }", text, str(source))
+
     def test_ai_author_accepts_only_allowlisted_source_diff(self):
         diff = """diff --git a/app/src/main/java/com/mana/os/Fix.kt b/app/src/main/java/com/mana/os/Fix.kt
 index 1111111..2222222 100644
