@@ -9,7 +9,9 @@ enum class ManaSettingsPage(val key: String, val label: String, val androidActio
     BLUETOOTH("bluetooth", "Bluetooth", android.provider.Settings.ACTION_BLUETOOTH_SETTINGS),
     DISPLAY("display", "Экран", android.provider.Settings.ACTION_DISPLAY_SETTINGS),
     SOUND("sound", "Звук", android.provider.Settings.ACTION_SOUND_SETTINGS),
-    BATTERY("battery", "Энергосбережение", android.provider.Settings.ACTION_BATTERY_SAVER_SETTINGS)
+    BATTERY("battery", "Энергосбережение", android.provider.Settings.ACTION_BATTERY_SAVER_SETTINGS),
+    NOTIFICATIONS("notifications", "Уведомления", android.provider.Settings.ACTION_NOTIFICATION_SETTINGS),
+    DO_NOT_DISTURB("do_not_disturb", "Доступ «Не беспокоить»", android.provider.Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
 }
 
 object ManaApprovedActionValidation {
