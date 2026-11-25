@@ -14,6 +14,7 @@ class ManaDefaultCognitivePolicyTest {
         assertEquals(ManaActionVerdict.ALLOW, policy.check(ManaCognitiveAction("apps.find_launchable")))
         assertEquals(ManaActionVerdict.REQUIRES_OWNER_CONFIRMATION, policy.check(ManaCognitiveAction("apps.launch")))
         assertEquals(ManaActionVerdict.REQUIRES_OWNER_CONFIRMATION, policy.check(ManaCognitiveAction("settings.open_page")))
+        assertEquals(ManaActionVerdict.REQUIRES_OWNER_CONFIRMATION, policy.check(ManaCognitiveAction("device.set_dnd_filter")))
     }
 
     @Test
