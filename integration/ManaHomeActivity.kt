@@ -334,19 +334,24 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
         if (requestCode == 705 && resultCode == RESULT_OK) {
             val uri = data?.data
             if (uri != null) {
-                try {
-                    val modelDir = java.io.File(filesDir, com.mana.os.integration.ManaLiteRtLmRuntime.MODEL_DIRECTORY)
-                    if (!modelDir.exists() && !modelDir.mkdirs()) error("Не удалось создать каталог модели.")
-                    val target = java.io.File(modelDir, com.mana.os.integration.ManaLiteRtLmRuntime.MODEL_FILE_NAME)
-                    contentResolver.openInputStream(uri).use { input ->
-                        requireNotNull(input) { "Не удалось прочитать выбранный файл." }
-                        target.outputStream().use { output -> input.copyTo(output) }
+                Thread({
+                    try {
+                        val modelDir = java.io.File(filesDir, com.mana.os.integration.ManaLiteRtLmRuntime.MODEL_DIRECTORY)
+                        if (!modelDir.exists() && !modelDir.mkdirs()) error("Не удалось создать каталог модели.")
+                        val target = java.io.File(modelDir, com.mana.os.integration.ManaLiteRtLmRuntime.MODEL_FILE_NAME)
+                        val temp = java.io.File(modelDir, "mana-local.litertlm.part")
+                        contentResolver.openInputStream(uri).use { input ->
+                            requireNotNull(input) { "Не удалось прочитать выбранный файл." }
+                            temp.outputStream().use { output -> input.copyTo(output) }
+                        }
+                        require(temp.length() >= 1_000_000L) { "Файл слишком мал для языковой модели." }
+                        if (target.exists() && !target.delete()) error("Не удалось заменить предыдущую модель.")
+                        if (!temp.renameTo(target)) error("Не удалось завершить установку модели.")
+                        runOnUiThread { toast("Файл модели сохранён. Перезапусти MANA, чтобы загрузить локальный движок.") }
+                    } catch (error: Exception) {
+                        runOnUiThread { toast("Не удалось установить модель: ${error.message}") }
                     }
-                    require(target.length() >= 1_000_000L) { "Файл слишком мал для языковой модели. Выбери совместимую .litertlm модель." }
-                    toast("Файл модели сохранён. Перезапусти MANA, чтобы загрузить локальный движок.")
-                } catch (error: Exception) {
-                    toast("Не удалось установить модель: ${error.message}")
-                }
+                }, "mana-model-import").start()
             }
         }
         if (requestCode == 703 && resultCode == RESULT_OK) {
@@ -447,7 +452,7 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
     }
 
     override fun onDestroy() {
-        gatewayChat.stop()
+        gatewayChat.close()
         voiceClient.cancel()
         runCatching { voicePlayer?.stop() }
         voicePlayer?.release()
