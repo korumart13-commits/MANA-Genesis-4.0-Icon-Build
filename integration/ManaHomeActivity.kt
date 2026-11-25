@@ -196,7 +196,7 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
                 val userStart = entry.text.indexOf("Ты: ")
                 val assistantStart = entry.text.indexOf("\\nМана: ")
                 if (userStart >= 0 && assistantStart > userStart) {
-                    val userText = entry.text.substring(userStart + 5, assistantStart).trim()
+                    val userText = entry.text.substring(userStart + 4, assistantStart).trim()
                     val assistantText = entry.text.substring(assistantStart + 7).trim()
                     if (userText.isNotBlank() && assistantText.isNotBlank()) {
                         dialogueState.add(
