@@ -133,7 +133,7 @@ class AndroidSelfDevelopment(context: Context) {
                     source = runCatching { ManaGenesis.IdeaSource.valueOf(item.getString("source")) }.getOrDefault(ManaGenesis.IdeaSource.OTHER),
                     summary = item.getString("summary"),
                     evidence = item.optString("evidence"),
-                    sourceReference = item.optString("sourceReference").ifBlank { null }
+                    sourceReference = item.optString("sourceReference").takeIf { it.isNotBlank() }
                 )
             }.getOrNull()
         }
