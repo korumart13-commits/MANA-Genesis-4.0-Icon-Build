@@ -11,7 +11,6 @@ package com.mana.os.integration
  */
 class ManaSystemKernel(
     private val engine: ManaCancellableReasoningModel,
-    private val genesis: ManaGenesis,
     private val hostContext: ManaGenesis.RuntimeContext,
     private val memory: ManaCognitiveMemory,
     private val tools: ManaCognitiveTools,
@@ -29,7 +28,7 @@ class ManaSystemKernel(
     @Synchronized
     fun start(platformModules: List<ManaGenesis.ModuleRuntime> = emptyList()): List<ManaGenesis.ModuleState> {
         check(!started) { "MANA System Kernel is already started." }
-        genesis.register(object : ManaGenesis.ModuleRuntime {
+        ManaGenesis.register(object : ManaGenesis.ModuleRuntime {
             override val id: String = "brain"
             override fun start(context: ManaGenesis.RuntimeContext) {
                 context.report("MANA Engine is registered as the central reasoning core.")
@@ -40,7 +39,7 @@ class ManaSystemKernel(
             require(module.id != "brain") { "The brain module is reserved for MANA Engine." }
             genesis.register(module)
         }
-        val states = genesis.start(hostContext)
+        val states = ManaGenesis.start(hostContext)
         started = true
         return states
     }
@@ -66,9 +65,9 @@ class ManaSystemKernel(
 
     @Synchronized
     fun stop(): List<ManaGenesis.ModuleState> {
-        if (!started) return genesis.snapshot()
+        if (!started) return ManaGenesis.snapshot()
         started = false
-        return genesis.stop()
+        return ManaGenesis.stop()
     }
 
     fun moduleStates(): List<ManaGenesis.ModuleState> = genesis.snapshot()
