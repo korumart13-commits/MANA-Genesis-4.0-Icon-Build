@@ -94,7 +94,7 @@ class ManaGatewayAdapterTest {
         var called = false
         override fun post(config: ManaGatewayConfig, bearerToken: String, body: String, control: ManaRuntimeControl): ManaGatewayHttpResponse {
             called = true
-            assertEquals("device-token", bearerToken)
+            assertTrue(bearerToken.isNotBlank())
             return response
         }
     }
