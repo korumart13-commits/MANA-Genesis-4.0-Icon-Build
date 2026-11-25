@@ -131,6 +131,8 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
         content.addView(appButton, marginTop(6))
         val selfButton = actionButton("Саморазвитие MANA") { showSelfDevelopment() }
         content.addView(selfButton, marginTop(8))
+        content.addView(actionButton("✦ Оживи MANA · фоновый аватар") { awakenMana() }, marginTop(8))
+        content.addView(actionButton("Скрыть фонового аватара") { stopManaAvatar() }, marginTop(8))
         val diaryButton = actionButton("Дневник MANA") {
             startActivity(Intent(this, ManaDiaryActivity::class.java))
         }
@@ -280,6 +282,30 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
         )
     }
 
+    private fun awakenMana() {
+        val engine = AndroidSelfDevelopment(this)
+        if (!engine.isSelfDevelopmentEnabled()) { toast("Саморазвитие выключено в настройках MANA."); return }
+        if (!android.provider.Settings.canDrawOverlays(this)) {
+            AlertDialog.Builder(this).setTitle("Разрешить фоновый аватар?")
+                .setMessage("Чтобы Мана отображалась поверх других приложений, Android должен разрешить показ поверх окон. Микрофон постоянно не включается.")
+                .setPositiveButton("Открыть настройки") { _, _ ->
+                    startActivityForResult(Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:$packageName")), 704)
+                }.setNegativeButton("Не сейчас", null).show()
+            return
+        }
+        val proposals = runCatching { engine.analyze() }.getOrDefault(emptyList())
+        val service = Intent(this, com.mana.os.integration.ManaAvatarService::class.java)
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(service) else startService(service)
+            toast("Мана оживает. Предложений саморазвития: " + proposals.size)
+        } catch (error: Exception) { toast("Не удалось запустить аватар: " + (error.message ?: "ошибка Android")) }
+    }
+
+    private fun stopManaAvatar() {
+        stopService(Intent(this, com.mana.os.integration.ManaAvatarService::class.java))
+        toast("Фоновый аватар остановлен.")
+    }
+
     private fun startVoiceInput() {
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 702)
@@ -297,9 +323,16 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
     @Deprecated("Android activity result compatibility")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 704) {
+            if (android.provider.Settings.canDrawOverlays(this)) awakenMana()
+            else toast("Разрешение поверх окон не выдано.")
+        }
         if (requestCode == 703 && resultCode == RESULT_OK) {
             val spoken = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-            if (!spoken.isNullOrBlank()) { message.setText(spoken); sendMessage() }
+            if (!spoken.isNullOrBlank()) {
+                if (spoken.trim().equals("оживи", ignoreCase = true) || spoken.trim().startsWith("оживи ")) awakenMana()
+                else { message.setText(spoken); sendMessage() }
+            }
         }
     }
 
