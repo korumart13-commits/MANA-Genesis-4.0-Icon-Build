@@ -160,6 +160,22 @@ class ManaToolTests(unittest.TestCase):
         self.assertIn('return ManaActionVerdict.DENY', policy)
         self.assertIn('unknownAndPrivilegedActionsAreDenied', policy_test)
 
+    def test_gateway_adapter_is_packaged_with_security_tests(self):
+        integration = Path(__file__).resolve().parents[2] / "integration"
+        adapter = (integration / "ManaGatewayReasoningModel.kt").read_text(encoding="utf-8")
+        gateway_test = (integration / "tests" / "ManaGatewayAdapterTest.kt").read_text(encoding="utf-8")
+        prepare = (TOOLS / "prepare_android_project.py").read_text(encoding="utf-8")
+        self.assertIn('"ManaGatewayReasoningModel.kt"', prepare)
+        self.assertIn('ManaGatewayAdapterTest.kt', prepare)
+        self.assertIn('class ManaGatewayReasoningModel', adapter)
+        self.assertIn('HttpsURLConnection', adapter)
+        self.assertIn('instanceFollowRedirects = false', adapter)
+        self.assertIn('maxResponseBytes', adapter)
+        self.assertIn('credentials.currentBearerToken()', adapter)
+        self.assertIn('missingDeviceCredentialFailsBeforeNetwork', gateway_test)
+        self.assertIn('configRequiresExactHttpsAllowlistedHostAndRoute', gateway_test)
+        self.assertIn('stopRequestedBeforeCallPreventsNetwork', gateway_test)
+
     def run_patch_gate(self, project: Path, patch_text: str, *extra: str):
         patch = project.parent / "proposal.patch"
         patch.write_text(patch_text, encoding="utf-8")
