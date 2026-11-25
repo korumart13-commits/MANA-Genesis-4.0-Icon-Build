@@ -155,7 +155,8 @@ class ManaAndroidGatewayJsonCodec : ManaGatewayJsonCodec {
         require(responseBody.toByteArray(StandardCharsets.UTF_8).size <= 65_536) { "Response too large." }
         val root = JSONObject(responseBody)
         val summary = root.optString("summary", "").take(500)
-        val answer = root.optString("answer", "").take(8_000).ifBlank { null }
+        val answerText = root.optString("answer", "").take(8_000)
+        val answer = if (answerText.isBlank()) null else answerText
         val actionsJson = root.optJSONArray("actions") ?: JSONArray()
         require(actionsJson.length() <= 3) { "Too many proposed actions." }
         val actions = (0 until actionsJson.length()).map { index ->
