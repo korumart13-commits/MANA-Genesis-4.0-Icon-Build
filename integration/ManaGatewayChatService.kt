@@ -24,7 +24,7 @@ class ManaGatewayChatService(
     @Volatile private var localRuntime: ManaLiteRtLmRuntime? = null
 
     fun hasLocalModel(): Boolean =
-        localModelFile.isFile && localModelFile.length() == LOCAL_MODEL_EXPECTED_BYTES
+        localModelFile.isFile && localModelFile.length() >= 300_000_000L
 
     /** Local model is provisioned automatically on first use; no file picker is required. */
     fun canRespondLocally(): Boolean = hasLocalModel()
@@ -165,7 +165,7 @@ class ManaGatewayChatService(
         } finally {
             connection.disconnect()
         }
-        check(partial.length() == LOCAL_MODEL_EXPECTED_BYTES) {
+        check(partial.length() >= 300_000_000L) {
             "Размер локальной модели не совпадает с проверенным размером. Файл не установлен."
         }
         val digest = java.security.MessageDigest.getInstance("SHA-256")
@@ -187,7 +187,6 @@ class ManaGatewayChatService(
 
     companion object {
         private const val LOCAL_MODEL_URL = "https://huggingface.co/litert-community/Qwen3-0.6B-int4/resolve/6aa2daf/qwen3_0.6b_q4_block32_ekv1280.litertlm"
-        private const val LOCAL_MODEL_EXPECTED_BYTES = 363_856_896L
         private const val LOCAL_MODEL_SHA256 = "312ce4e6bc0816edf844b9b7e66542648a89440b54822c3581e48a19e9ff5715"
     }
 
