@@ -34,7 +34,7 @@ class ManaGatewayChatService(
                 val runtime = ManaCognitiveRuntime(
                     model = model,
                     memory = ManaLocalCognitiveMemory(appContext),
-                    tools = NoAvailableManaTools,
+                    tools = ManaAndroidReadOnlyTools.create(appContext),
                     policy = ManaDefaultCognitivePolicy(),
                     maxCycles = 3,
                     control = signal,
