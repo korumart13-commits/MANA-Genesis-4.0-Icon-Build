@@ -42,6 +42,13 @@ class ManaLocalCognitiveMemory(context: Context) : ManaCognitiveMemory {
         prefs.edit().putString(KEY_ENTRIES, array.toString()).apply()
     }
 
+    /** Recent entries for the owner's memory review screen; newest first. */
+    @Synchronized
+    fun recentEntries(limit: Int = 20): List<ManaCognitiveMemoryEntry> {
+        if (limit <= 0) return emptyList()
+        return readAll().takeLast(limit.coerceAtMost(50)).asReversed()
+    }
+
     @Synchronized
     fun clear() {
         prefs.edit().remove(KEY_ENTRIES).apply()
