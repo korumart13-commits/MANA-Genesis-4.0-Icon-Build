@@ -21,7 +21,6 @@ import android.view.inputmethod.InputMethodManager
 import android.content.Context
 import android.media.MediaPlayer
 import android.widget.*
-import com.mana.os.cloud.ManaCloudClient
 import com.mana.os.integration.AndroidSelfDevelopment
 import com.mana.os.integration.ManaGenesis
 import java.util.Locale
@@ -38,7 +37,6 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
     private lateinit var status: TextView
     private lateinit var chatLog: TextView
     private lateinit var message: EditText
-    private var cloudReady = false
     private val conversationId = java.util.UUID.randomUUID().toString()
     private val dialogueState = com.mana.os.integration.ManaDialogueState()
     private val localMemory by lazy { com.mana.os.integration.ManaLocalCognitiveMemory(this) }
@@ -57,7 +55,6 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
         window.statusBarColor = bg
         window.navigationBarColor = bg
         renderHome()
-        checkCloud()
     }
 
     private fun renderHome() {
@@ -100,17 +97,17 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
         avatarPanel.addView(avatar, LinearLayout.LayoutParams(dp(112), dp(142)))
         val intro = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(14), 0, 0, 0) }
         intro.addView(label("Привет. Я Мана.", 20f, primaryText, true))
-        intro.addView(label("Твой единый ИИ-помощник и пространство телефона.", 13f, muted))
+        intro.addView(label("Я — Мана. Мой аватар всегда рядом, когда ты этого хочешь.", 13f, muted))
         intro.addView(label("Оригинальный 3D-аватар MANA. Голос пока использует установленный русский движок Android.", 11f, muted))
         avatarPanel.addView(intro, LinearLayout.LayoutParams(0, -2, 1f))
         content.addView(avatarPanel, marginTop(20))
 
-        status = label("Облако: проверка подключения…", 12f, accent)
+        status = label("Локальное ядро MANA · проверка готовности…", 12f, accent)
         content.addView(status, marginTop(14))
 
         section("ПОГОВОРИТЬ С МАНОЙ")
         val chatCard = card()
-        chatLog = label("Напиши сообщение. Если облачный сервер ещё не настроен, я честно сообщу об этом и сохраню локальный режим.", 14f, primaryText)
+        chatLog = label("Напиши или скажи мне что-нибудь. Я использую собственное локальное ядро MANA.", 14f, primaryText)
         chatCard.addView(chatLog)
         message = EditText(this).apply {
             hint = "Сообщение для Маны…"; setHintTextColor(muted); setTextColor(primaryText)
@@ -182,69 +179,25 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
         content.addView(label("MANA не отключает Play Protect, SELinux или Verified Boot. Действия с системными приложениями ограничиваются Android и требуют подтверждения.", 11f, muted), marginTop(16))
     }
 
-    private fun checkCloud() {
-        if (gatewayChat.isConfigured()) {
-            status.text = "Локальный ИИ MANA — основной. Облачный сервер доступен как дополнительный резерв."
-            cloudReady = false
-            return
-        }
-        val url = prefs.getString("cloud_url", "").orEmpty()
-        if (url.isBlank()) {
-            status.text = "Локальный ИИ MANA — основной режим. Сервер пока не подключён; интернет для общения с Маной не обязателен после установки модели."
-            cloudReady = false
-            return
-        }
-        ManaCloudClient(url, prefs.getString("cloud_token", null)).checkHealth { ok, detail ->
-            runOnUiThread {
-                cloudReady = ok
-                status.text = if (ok) "Локальный ИИ MANA — основной. Дополнительный облачный резерв доступен." else "Локальный ИИ MANA — основной. Облачный резерв недоступен ($detail)."
-            }
-        }
-    }
-
     private fun sendMessage() {
         val text = message.text.toString().trim()
         if (text.isEmpty()) return
-        if (gatewayChat.isConfigured() || gatewayChat.canStartLocalSetup()) {
-            chatLog.text = "Ты: $text\n\nМана: " + if (gatewayChat.hasLocalModel()) "запускаю основной локальный интеллект MANA…" else "подготавливаю основной локальный ИИ MANA (около 347 МБ)…"
-            message.setText("")
-            (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
-                .hideSoftInputFromWindow(message.windowToken, 0)
-            val started = gatewayChat.send(text) { answer, error, approvals ->
-                runOnUiThread {
-                    val reply = answer ?: "Не удалось получить ответ: ${error ?: "неизвестная ошибка"}"
-                    chatLog.text = "Ты: $text\n\nМана: $reply"
-                    if (answer != null) {
-                        speak(answer)
-                        recordConversation(text, answer)
-                    }
-                    if (approvals.isNotEmpty()) showOwnerApprovalDialogs(approvals)
-                }
-            }
-            if (!started) toast("Нет доступного ИИ-провайдера. Установи локальную модель или настрой шлюз MANA.")
-            return
-        }
-        val offlineReply = "Сейчас я работаю локально. Облачный чат не подключён, поэтому сообщение не отправлено."
-        chatLog.text = "Ты: $text\n\n" + if (!cloudReady) "Мана: $offlineReply" else "Мана: отправляю сообщение…"
-        if (!cloudReady) {
-            speak(offlineReply)
-            recordConversation(text, offlineReply)
-        }
+        chatLog.text = "Ты: $text\n\nМана: подготавливаю локальное ядро MANA…"
         message.setText("")
         (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
             .hideSoftInputFromWindow(message.windowToken, 0)
-        val url = prefs.getString("cloud_url", "").orEmpty()
-        if (cloudReady && url.isNotBlank()) {
-            ManaCloudClient(url, prefs.getString("cloud_token", null)).sendMessage(text) { answer, error ->
-                runOnUiThread {
-                    chatLog.text = "Ты: $text\n\n" + (answer?.let { "Мана: $it" } ?: "Мана: ошибка облака — $error")
-                    answer?.let {
-                        speak(it)
-                        recordConversation(text, it)
-                    }
+        val started = gatewayChat.send(text) { answer, error, approvals ->
+            runOnUiThread {
+                val reply = answer ?: "Не удалось получить ответ: ${error ?: "локальное ядро недоступно"}"
+                chatLog.text = "Ты: $text\n\nМана: $reply"
+                if (answer != null) {
+                    speak(answer)
+                    recordConversation(text, answer)
                 }
+                if (approvals.isNotEmpty()) showOwnerApprovalDialogs(approvals)
             }
         }
+        if (!started) toast("Локальное ядро MANA сейчас занято. Попробуй немного позже.")
     }
 
     /** Restore only recent chat exchanges from app-private local memory into bounded dialogue context. */
