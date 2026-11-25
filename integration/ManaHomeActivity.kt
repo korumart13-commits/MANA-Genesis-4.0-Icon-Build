@@ -32,6 +32,9 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
     private lateinit var chatLog: TextView
     private lateinit var message: EditText
     private var cloudReady = false
+    private val conversationId = java.util.UUID.randomUUID().toString()
+    private val dialogueState = com.mana.os.integration.ManaDialogueState()
+    private val localMemory by lazy { com.mana.os.integration.ManaLocalCognitiveMemory(this) }
 
     private val bg = Color.rgb(5, 15, 34)
     private val panel = Color.rgb(12, 32, 62)
@@ -163,7 +166,10 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
         if (text.isEmpty()) return
         val offlineReply = "Сейчас я работаю локально. Облачный чат не подключён, поэтому сообщение не отправлено."
         chatLog.text = "Ты: $text\n\n" + if (!cloudReady) "Мана: $offlineReply" else "Мана: отправляю сообщение…"
-        if (!cloudReady) speak(offlineReply)
+        if (!cloudReady) {
+            speak(offlineReply)
+            recordConversation(text, offlineReply)
+        }
         message.setText("")
         (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
             .hideSoftInputFromWindow(message.windowToken, 0)
@@ -172,10 +178,32 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
             ManaCloudClient(url, prefs.getString("cloud_token", null)).sendMessage(text) { answer, error ->
                 runOnUiThread {
                     chatLog.text = "Ты: $text\n\n" + (answer?.let { "Мана: $it" } ?: "Мана: ошибка облака — $error")
-                    answer?.let { speak(it) }
+                    answer?.let {
+                        speak(it)
+                        recordConversation(text, it)
+                    }
                 }
             }
         }
+    }
+
+    /** Save a concise, bounded local conversation summary; this is not sent to any server. */
+    private fun recordConversation(userText: String, assistantText: String) {
+        dialogueState.add(
+            com.mana.os.integration.ManaDialogueTurn(
+                topic = userText.take(80),
+                userSummary = userText.take(500),
+                assistantSummary = assistantText.take(500),
+                tone = com.mana.os.integration.ManaDialogueTone.NEUTRAL
+            )
+        )
+        localMemory.remember(
+            com.mana.os.integration.ManaCognitiveMemoryEntry(
+                conversationId = conversationId,
+                kind = "chat_exchange",
+                text = "Ты: ${userText.take(500)}\\nМана: ${assistantText.take(500)}"
+            )
+        )
     }
 
     private fun startVoiceInput() {
