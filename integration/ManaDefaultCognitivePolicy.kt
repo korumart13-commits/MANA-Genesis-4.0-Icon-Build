@@ -36,6 +36,7 @@ class ManaDefaultCognitivePolicy : ManaCognitivePolicy {
         val OWNER_CONFIRMATION_TOOLS = setOf(
             "apps.launch",
             "settings.open_page",
+            "device.set_dnd_filter",
             "settings.change",
             "calls.answer",
             "messages.send",
