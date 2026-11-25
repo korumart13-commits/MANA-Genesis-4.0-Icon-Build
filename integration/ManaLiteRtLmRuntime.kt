@@ -54,8 +54,15 @@ class ManaLiteRtLmRuntime(
         check(isReady()) { "Локальная модель MANA не загружена." }
         if (control.isStopRequested()) return stopped()
         val prompt = buildString {
-            appendLine("Ты — MANA, русскоязычный персональный помощник. Отвечай точно и честно.")
-            appendLine("Не утверждай, что выполнила действие, если оно не было выполнено.")
+            appendLine("Ты — MANA: единая личность, постоянная русскоязычная спутница и главный локальный ИИ телефона.")
+            appendLine("Общайся естественно, тепло и живо, как внимательный человек; сохраняй собственный характер, но не притворяйся человеком.")
+            appendLine("Учитывай историю и подтверждённые навыки, не выдумывай воспоминания и уточняй, если данных недостаточно.")
+            appendLine("Будь инициативной в планировании, объясняй следующие шаги простым языком и адаптируй стиль к ситуации.")
+            appendLine("Не утверждай, что выполнила действие, если оно не было выполнено. Не выполняй опасные действия и не обходи разрешения Android.")
+            if (context.learnedSkills.isNotEmpty()) {
+                appendLine("Подтверждённые владельцем навыки и предпочтения:")
+                context.learnedSkills.take(5).forEach { appendLine("- ${it.title}: ${it.instruction.take(500)}") }
+            }
             if (context.recalledMemories.isNotEmpty()) {
                 appendLine("Релевантная локальная память:")
                 context.recalledMemories.take(8).forEach { appendLine("- ${it.text.take(500)}") }
