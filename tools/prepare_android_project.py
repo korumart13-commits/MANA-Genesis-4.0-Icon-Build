@@ -60,9 +60,9 @@ def main() -> None:
     junit_dependency = 'testImplementation("junit:junit:4.13.2")'
     if junit_dependency not in gradle_source:
         gradle_source += (
-            "\\n\\ndependencies {\\n"
-            f"    {junit_dependency}\\n"
-            "}\\n"
+            "\n\ndependencies {\n"
+            f"    {junit_dependency}\n"
+            "}\n"
         )
         core_gradle.write_text(gradle_source, encoding="utf-8")
 
