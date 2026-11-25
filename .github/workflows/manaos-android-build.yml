@@ -9,7 +9,7 @@ on:
       - "integration/**"
       - "tools/**"
   push:
-    branches: [main]
+    branches: [main, mana-avatar-voice-server]
     paths:
       - ".github/workflows/**"
       - "docs/**"
