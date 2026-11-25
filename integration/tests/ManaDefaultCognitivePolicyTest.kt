@@ -10,6 +10,7 @@ class ManaDefaultCognitivePolicyTest {
     fun explicitlyReadOnlyToolsAreAllowed() {
         assertEquals(ManaActionVerdict.ALLOW, policy.check(ManaCognitiveAction("device.read_status")))
         assertEquals(ManaActionVerdict.ALLOW, policy.check(ManaCognitiveAction("device.read_notification_status")))
+        assertEquals(ManaActionVerdict.ALLOW, policy.check(ManaCognitiveAction("device.read_audio_status")))
         assertEquals(ManaActionVerdict.ALLOW, policy.check(ManaCognitiveAction("apps.list_installed")))
         assertEquals(ManaActionVerdict.ALLOW, policy.check(ManaCognitiveAction("apps.find_launchable")))
         assertEquals(ManaActionVerdict.REQUIRES_OWNER_CONFIRMATION, policy.check(ManaCognitiveAction("apps.launch")))
