@@ -284,14 +284,18 @@ class ManaCancellationSignal : ManaRuntimeControl {
     override fun isStopRequested(): Boolean = stopped.get()
 
     override fun onStop(listener: () -> Unit): AutoCloseable {
+        val fired = AtomicBoolean(false)
+        val guarded = {
+            if (fired.compareAndSet(false, true)) runCatching(listener)
+        }
         if (isStopRequested()) {
-            runCatching(listener)
+            guarded()
             return AutoCloseable { }
         }
-        listeners.add(listener)
+        listeners.add(guarded)
         // Close the race where stop is requested between the first check and registration.
-        if (isStopRequested() && listeners.remove(listener)) runCatching(listener)
-        return AutoCloseable { listeners.remove(listener) }
+        if (isStopRequested() && listeners.remove(guarded)) guarded()
+        return AutoCloseable { listeners.remove(guarded) }
     }
 
     /** Returns true only for the first stop request. */
