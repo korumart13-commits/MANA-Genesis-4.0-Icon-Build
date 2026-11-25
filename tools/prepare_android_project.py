@@ -81,10 +81,10 @@ def main() -> None:
     legacy_activity = app_source_dir / "MainActivity.kt"
     if legacy_activity.is_file():
         legacy_activity.write_text(
-            "package com.mana.os.app\\n\\n"
-            "import android.app.Activity\\n\\n"
-            "/** Legacy manifest compatibility stub; ManaHomeActivity is the actual entry point. */\\n"
-            "class MainActivity : Activity()\\n",
+            "package com.mana.os.app\n\n"
+            "import android.app.Activity\n\n"
+            "/** Legacy manifest compatibility stub; ManaHomeActivity is the actual entry point. */\n"
+            "class MainActivity : Activity()\n",
             encoding="utf-8",
         )
 
