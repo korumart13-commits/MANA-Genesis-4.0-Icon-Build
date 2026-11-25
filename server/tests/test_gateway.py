@@ -28,6 +28,7 @@ class GatewayContractTests(unittest.TestCase):
         self.assertFalse(response.json()["model_configured"])
 
     def test_respond_requires_authentication(self):
+        os.environ["MANA_DEVICE_BEARER_TOKEN"] = "d" * 40
         response = self.client.post("/v1/mana/respond", json={"protocol_version": 1})
         self.assertEqual(response.status_code, 401)
 
