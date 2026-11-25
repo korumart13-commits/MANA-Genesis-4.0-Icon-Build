@@ -51,7 +51,7 @@ Android integration:
 4. Synchronize mouth animation with voice playback and provide blink/gaze/expression controls.
 5. Test frame time, memory, heat and battery on the actual target phone.
 
-Current APK still displays a letter placeholder. No production VRM/GLB asset or Android 3D renderer is bundled yet. A placeholder or static picture must never be described as a working 3D avatar.
+The current development branch now generates an original procedural GLB character, bundles a pinned local Three.js/GLTFLoader renderer into the Android assets, and replaces the letter placeholder with a WebView-based 3D surface. Blink and mouth morph targets are driven by the viewer; the Android speech output can signal mouth motion. The asset-generation CI has passed. The Android APK build and actual device rendering/performance test are still pending. This is an initial stylized character, not a polished final art asset.
 
 ## Device verification
 
