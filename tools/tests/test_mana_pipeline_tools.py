@@ -223,6 +223,21 @@ class ManaToolTests(unittest.TestCase):
         self.assertIn('approvalExpiresAndCannotBeReused', test_source)
         self.assertIn('auditDoesNotStoreArgumentValuesAndIsBounded', test_source)
 
+    def test_owner_approval_dialog_is_connected_and_never_executes_unwired_action(self):
+        integration = Path(__file__).resolve().parents[2] / "integration"
+        activity = (integration / "ManaHomeActivity.kt").read_text(encoding="utf-8")
+        service = (integration / "ManaGatewayChatService.kt").read_text(encoding="utf-8")
+        runtime = (integration / "ManaCognitiveRuntime.kt").read_text(encoding="utf-8")
+        self.assertIn("showOwnerApprovalDialogs(approvals)", activity)
+        self.assertIn('setPositiveButton("Одобрить запрос")', activity)
+        self.assertIn('setNegativeButton("Отклонить")', activity)
+        self.assertIn("request.arguments.forEach", activity)
+        self.assertIn("исполнитель этой функции пока не подключён", activity)
+        self.assertIn("approvalBroker = approvalBroker", service)
+        self.assertIn("discardApprovedToken(token)", service)
+        self.assertIn("approvalRequests += request", runtime)
+        self.assertIn("ничего не изменено", runtime)
+
     def test_gateway_deployment_config_is_optional_and_pinned(self):
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp)
