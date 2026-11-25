@@ -72,6 +72,18 @@ def main() -> None:
         )
         core_gradle.write_text(gradle_source, encoding="utf-8")
 
+    # The extracted legacy onboarding activity is no longer the app entry point.
+    # Replace it with a tiny compatibility stub so stale UI code cannot break the new MANA home build.
+    legacy_activity = app_source_dir / "MainActivity.kt"
+    if legacy_activity.is_file():
+        legacy_activity.write_text(
+            "package com.mana.os.app\\n\\n"
+            "import android.app.Activity\\n\\n"
+            "/** Legacy manifest compatibility stub; ManaHomeActivity is the actual entry point. */\\n"
+            "class MainActivity : Activity()\\n",
+            encoding="utf-8",
+        )
+
     manifest = project / "app/src/main/AndroidManifest.xml"
     manifest_text = manifest.read_text(encoding="utf-8")
     old_launcher_filter = """            <intent-filter>
