@@ -112,6 +112,20 @@ jobs:
             --source "$PROJECT_DIR" \
             --out "$GITHUB_WORKSPACE/output/code-intelligence"
 
+      - name: Draft optional AI patch from static findings (review only)
+        shell: bash
+        env:
+          PROJECT_DIR: ${{ steps.project.outputs.dir }}
+          MANA_AI_API_KEY: ${{ secrets.MANA_AI_API_KEY }}
+          MANA_AI_MODEL: ${{ vars.MANA_AI_MODEL }}
+          MANA_AI_API_URL: ${{ vars.MANA_AI_API_URL }}
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/tools/mana_ai_code_author.py" \
+            --report "$GITHUB_WORKSPACE/output/code-intelligence/MANA_CODE_INTELLIGENCE.json" \
+            --source "$PROJECT_DIR" \
+            --out "$GITHUB_WORKSPACE/output/ai-code-author"
+
       - name: Run project tests and build debug APK
         working-directory: ${{ steps.project.outputs.dir }}
         shell: bash
