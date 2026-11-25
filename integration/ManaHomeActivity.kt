@@ -194,7 +194,7 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
             .filter { it.kind == "chat_exchange" }
             .forEach { entry ->
                 val userStart = entry.text.indexOf("Ты: ")
-                val assistantStart = entry.text.indexOf("\\nМана: ")
+                val assistantStart = entry.text.indexOf("\nМана: ")
                 if (userStart >= 0 && assistantStart > userStart) {
                     val userText = entry.text.substring(userStart + 4, assistantStart).trim()
                     val assistantText = entry.text.substring(assistantStart + 7).trim()
