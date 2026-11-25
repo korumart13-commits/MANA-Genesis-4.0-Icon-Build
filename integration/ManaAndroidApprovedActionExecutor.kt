@@ -1,6 +1,7 @@
 package com.mana.os.integration
 
 import android.app.NotificationManager
+import android.media.AudioManager
 import android.content.Context
 import android.content.Intent
 
@@ -32,6 +33,7 @@ class ManaAndroidApprovedActionExecutor(
             }
             "settings.open_page" -> ManaApprovedActionValidation.settingsPage(action)?.label
             "device.set_dnd_filter" -> ManaApprovedActionValidation.dndFilter(action)?.label
+            "device.set_audio_volume" -> ManaApprovedActionValidation.audioVolume(action)?.label
             else -> null
         }
     }
@@ -46,6 +48,9 @@ class ManaAndroidApprovedActionExecutor(
         var launchIntent: Intent? = null
         var dndManager: NotificationManager? = null
         var dndFilter: ManaDndFilter? = null
+        var audioManager: AudioManager? = null
+        var audioVolume: ManaAudioVolumeRequest? = null
+        var audioLevel: Int? = null
 
         when (request.actionName) {
             "apps.launch" -> {
@@ -81,6 +86,16 @@ class ManaAndroidApprovedActionExecutor(
                 }
                 targetLabel = dndFilter!!.label
             }
+            "device.set_audio_volume" -> {
+                audioVolume = ManaApprovedActionValidation.audioVolume(action)
+                    ?: return reject(requestId, "Недопустимые параметры громкости.")
+                audioManager = app.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+                    ?: return reject(requestId, "Управление звуком недоступно.")
+                val maximum = audioManager!!.getStreamMaxVolume(audioVolume!!.stream.androidStream)
+                if (maximum <= 0) return reject(requestId, "Android не сообщил допустимый диапазон громкости.")
+                audioLevel = ((maximum * audioVolume!!.percent) / 100.0).toInt()
+                targetLabel = audioVolume!!.label
+            }
             else -> return reject(requestId, "Этот тип действия пока не поддерживается.")
         }
 
@@ -97,6 +112,13 @@ class ManaAndroidApprovedActionExecutor(
                     true,
                     "Режим «Не беспокоить» установлен: $targetLabel. Он действует, пока ты не изменишь режим вручную."
                 )
+            } else if (audioVolume != null) {
+                audioManager!!.setStreamVolume(
+                    audioVolume!!.stream.androidStream,
+                    audioLevel!!,
+                    AudioManager.FLAG_SHOW_UI
+                )
+                ManaApprovedActionResult(true, "Громкость изменена: $targetLabel.")
             } else {
                 val intent = launchIntent ?: return ManaApprovedActionResult(false, "Цель действия недоступна.")
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
