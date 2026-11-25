@@ -45,13 +45,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          WRAPPER="$(find "$GITHUB_WORKSPACE/source/unpacked" -type f -name gradlew -print -quit)"
+          # Select the intended unified Android project, never a historical sample.
+          WRAPPER="$(find "$GITHUB_WORKSPACE/source/unpacked" -type f -path '*/existing_aosp/MANA_OS_3_0_Android_Project/gradlew' -print -quit)"
           if [ -z "$WRAPPER" ]; then
-            echo "Gradle wrapper not found in source archive."
-            find "$GITHUB_WORKSPACE/source/unpacked" -maxdepth 5 -type f | head -200
+            echo "Expected project existing_aosp/MANA_OS_3_0_Android_Project was not found."
+            find "$GITHUB_WORKSPACE/source/unpacked" -type f \( -name gradlew -o -name settings.gradle -o -name settings.gradle.kts \) -print | head -200
             exit 1
           fi
           PROJECT_DIR="$(dirname "$WRAPPER")"
+          if [ ! -f "$PROJECT_DIR/settings.gradle" ] && [ ! -f "$PROJECT_DIR/settings.gradle.kts" ]; then
+            echo "Selected directory has no Gradle settings file: $PROJECT_DIR"
+            exit 1
+          fi
           echo "dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
           chmod +x "$WRAPPER"
           echo "Using project: $PROJECT_DIR"
