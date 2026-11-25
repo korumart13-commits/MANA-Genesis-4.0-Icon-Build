@@ -2,7 +2,7 @@ package com.mana.os.integration
 
 /** Periodic "dream" review of MANA-owned knowledge; not a claim of biological sleep. */
 enum class ManaDreamItemKind { MEMORY_ENTRY, DERIVED_FILE_COPY, USER_ORIGINAL_FILE, SEARCH_INDEX }
-enum class ManaDreamDecision { KEEP, COMPRESS, FORGET_OWN_COPY, REMOVE_INDEX_ONLY, OWNER_REVIEW }
+enum class ManaDreamDecision { KEEP, COMPRESS, FORGET_OWN_COPY, REMOVE_INDEX_ONLY, MOVE_USER_FILE_TO_RECOVERY, OWNER_REVIEW }
 
 data class ManaDreamItem(
     val id: String,
@@ -16,7 +16,9 @@ data class ManaDreamItem(
     val confidence: Int = 50,
     val priorLowValueReviews: Int = 0,
     val pinnedByOwner: Boolean = false,
-    val protectedCategory: Boolean = false
+    val protectedCategory: Boolean = false,
+    /** True only for a folder explicitly included in the owner's cleanup scope. */
+    val ownerApprovedForCleanup: Boolean = false
 )
 
 data class ManaDreamAssessment(
@@ -33,6 +35,8 @@ interface ManaDreamStore {
     fun forgetDerivedFileCopy(id: String)
     /** Removes MANA's index/embedding, leaving the original file untouched. */
     fun removeSearchIndex(id: String)
+    /** Moves a user original into a recoverable quarantine/trash; must never permanently purge it. */
+    fun moveUserOriginalToRecovery(id: String)
 }
 
 /**
@@ -44,7 +48,8 @@ class ManaDreamConsolidation(
     private val store: ManaDreamStore,
     private val minimumAgeDays: Int = 14,
     private val forgetBelowScore: Int = 20,
-    private val compressBelowScore: Int = 42
+    private val compressBelowScore: Int = 42,
+    private val allowUserFileCleanup: Boolean = false
 ) {
     init {
         require(minimumAgeDays >= 1)
@@ -82,7 +87,9 @@ class ManaDreamConsolidation(
                         ManaDreamItemKind.MEMORY_ENTRY,
                         ManaDreamItemKind.DERIVED_FILE_COPY -> ManaDreamDecision.FORGET_OWN_COPY
                         ManaDreamItemKind.SEARCH_INDEX -> ManaDreamDecision.REMOVE_INDEX_ONLY
-                        ManaDreamItemKind.USER_ORIGINAL_FILE -> ManaDreamDecision.OWNER_REVIEW
+                        ManaDreamItemKind.USER_ORIGINAL_FILE -> if (allowUserFileCleanup && item.ownerApprovedForCleanup) {
+                            ManaDreamDecision.MOVE_USER_FILE_TO_RECOVERY
+                        } else ManaDreamDecision.OWNER_REVIEW
                     }
                 score < compressBelowScore -> ManaDreamDecision.COMPRESS
                 else -> ManaDreamDecision.KEEP
@@ -104,6 +111,12 @@ class ManaDreamConsolidation(
                 }
                 ManaDreamDecision.REMOVE_INDEX_ONLY -> {
                     if (item.kind == ManaDreamItemKind.SEARCH_INDEX) store.removeSearchIndex(item.id)
+                }
+                ManaDreamDecision.MOVE_USER_FILE_TO_RECOVERY -> {
+                    if (item.kind == ManaDreamItemKind.USER_ORIGINAL_FILE && allowUserFileCleanup && item.ownerApprovedForCleanup &&
+                        !item.pinnedByOwner && !item.protectedCategory) {
+                        store.moveUserOriginalToRecovery(item.id)
+                    }
                 }
                 else -> Unit
             }
