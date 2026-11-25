@@ -17,6 +17,7 @@ class AndroidSelfDevelopment(context: Context) {
 
     @Synchronized
     fun collect(source: ManaGenesis.IdeaSource, summary: String, evidence: String = "") {
+        check(isSelfDevelopmentEnabled()) { "Саморазвитие отключено владельцем." }
         require(summary.isNotBlank()) { "Идея не должна быть пустой." }
         require(summary.length <= 20_000 && evidence.length <= 50_000) { "Слишком большой объём текста." }
         val idea = ManaGenesis.IdeaRecord(
@@ -32,6 +33,7 @@ class AndroidSelfDevelopment(context: Context) {
 
     @Synchronized
     fun analyze(): List<ManaGenesis.DevelopmentProposal> {
+        if (!isSelfDevelopmentEnabled()) return readProposals()
         val ideas = readIdeas()
         val known = readProposals().associateBy { it.id }.toMutableMap()
         ideas.forEach { idea ->
