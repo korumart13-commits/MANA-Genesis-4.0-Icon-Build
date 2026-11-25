@@ -10,6 +10,7 @@ from pathlib import Path
 TOOLS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(TOOLS))
 import mana_ai_code_author as author
+import prepare_android_project as prepare
 
 PATCH_GATE = TOOLS / "mana_patch_gate.py"
 
@@ -177,6 +178,38 @@ class ManaToolTests(unittest.TestCase):
         self.assertIn('stopRequestedBeforeCallPreventsNetwork', gateway_test)
         self.assertIn('malformedDeviceTokenIsRejectedBeforeNetwork', gateway_test)
         self.assertIn('[A-Za-z0-9._~+/=-]{16,4096}', adapter)
+
+    def test_gateway_deployment_config_is_optional_and_pinned(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            prepare.write_gateway_deployment_config(project, "", "")
+            generated = project / "app/src/main/java/com/mana/os/integration/ManaGatewayDeploymentConfig.kt"
+            content = generated.read_text(encoding="utf-8")
+            self.assertIn('const val ENDPOINT = ""', content)
+            self.assertIn('isConfigured(): Boolean', content)
+            prepare.write_gateway_deployment_config(
+                project, "https://gateway.example/v1/mana/respond", "gateway.example"
+            )
+            content = generated.read_text(encoding="utf-8")
+            self.assertIn('const val EXPECTED_HOST = "gateway.example"', content)
+            with self.assertRaises(SystemExit):
+                prepare.write_gateway_deployment_config(
+                    project, "http://gateway.example/v1/mana/respond", "gateway.example"
+                )
+            with self.assertRaises(SystemExit):
+                prepare.write_gateway_deployment_config(
+                    project, "https://attacker.example/v1/mana/respond", "gateway.example"
+                )
+
+    def test_android_keystore_gateway_credential_store_is_packaged(self):
+        integration = Path(__file__).resolve().parents[2] / "integration"
+        source = (integration / "ManaAndroidGatewayCredentialStore.kt").read_text(encoding="utf-8")
+        prepare_source = (TOOLS / "prepare_android_project.py").read_text(encoding="utf-8")
+        self.assertIn('"ManaAndroidGatewayCredentialStore.kt"', prepare_source)
+        self.assertIn('AndroidKeyStore', source)
+        self.assertIn('AES/GCM/NoPadding', source)
+        self.assertIn('provisionAfterOwnerApproval', source)
+        self.assertIn('fun revoke()', source)
 
     def run_patch_gate(self, project: Path, patch_text: str, *extra: str):
         patch = project.parent / "proposal.patch"
