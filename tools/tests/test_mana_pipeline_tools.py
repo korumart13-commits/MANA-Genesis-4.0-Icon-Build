@@ -520,5 +520,21 @@ index 1111111..2222222 100644
             self.assertFalse((out / "MANA_AI_PROPOSED.patch").exists())
 
 
+    def test_life_manager_is_packaged_and_keeps_tasks_local(self):
+        integration = Path(__file__).resolve().parents[2] / "integration"
+        activity = (integration / "ManaLifeManagerActivity.kt").read_text(encoding="utf-8")
+        prepare = (TOOLS / "prepare_android_project.py").read_text(encoding="utf-8")
+        home = (integration / "ManaHomeActivity.kt").read_text(encoding="utf-8")
+        self.assertIn('getSharedPreferences("mana_life_manager"', activity)
+        self.assertIn('putString("tasks", array.toString())', activity)
+        self.assertIn("tasks.takeLast(250)", activity)
+        self.assertIn("DatePickerDialog", activity)
+        self.assertIn('"ManaLifeManagerActivity.kt"', prepare)
+        self.assertIn("ManaLifeManagerActivity", prepare)
+        self.assertIn("Задачи и планы MANA", home)
+        self.assertNotIn("https://", activity)
+        self.assertNotIn("INTERNET", activity)
+
+
 if __name__ == "__main__":
     unittest.main()
