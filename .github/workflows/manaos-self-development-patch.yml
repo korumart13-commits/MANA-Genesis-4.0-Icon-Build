@@ -86,6 +86,7 @@ jobs:
           mkdir -p "$TARGET"
           install -m 0644 "$GITHUB_WORKSPACE/integration/ManaGenesis.kt" "$TARGET/ManaGenesis.kt"
           install -m 0644 "$GITHUB_WORKSPACE/integration/AndroidSelfDevelopment.kt" "$TARGET/AndroidSelfDevelopment.kt"
+          install -m 0644 "$GITHUB_WORKSPACE/integration/ManaDevelopmentPipeline.kt" "$TARGET/ManaDevelopmentPipeline.kt"
 
       - name: Validate and apply proposal patch in isolated workspace
         shell: bash
