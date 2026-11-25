@@ -1,0 +1,85 @@
+name: ManaOS Android APK Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/manaos-android-build.yml"
+      - "docs/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: manaos-android-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout build repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Download source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p source
+          curl -fL --retry 3 \
+            "https://raw.githubusercontent.com/korumart13-commits/MANA-Genesis-4.0./main/MANA_Genesis_4_0_MIRROR_READY_SOURCE%282%29.zip" \
+            -o source/manaos-source.zip
+          unzip -q source/manaos-source.zip -d source/unpacked
+
+      - name: Locate Android Gradle project
+        id: project
+        shell: bash
+        run: |
+          set -euo pipefail
+          WRAPPER="$(find "$GITHUB_WORKSPACE/source/unpacked" -type f -name gradlew -print -quit)"
+          if [ -z "$WRAPPER" ]; then
+            echo "Gradle wrapper not found in source archive."
+            find "$GITHUB_WORKSPACE/source/unpacked" -maxdepth 5 -type f | head -200
+            exit 1
+          fi
+          PROJECT_DIR="$(dirname "$WRAPPER")"
+          echo "dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
+          chmod +x "$WRAPPER"
+          echo "Using project: $PROJECT_DIR"
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build debug APK
+        working-directory: ${{ steps.project.outputs.dir }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon --stacktrace assembleDebug
+
+      - name: Collect APKs
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/output"
+          find "${{ steps.project.outputs.dir }}" -type f -path "*/build/outputs/apk/*/*.apk" -exec cp {} "$GITHUB_WORKSPACE/output/" \;
+          test -n "$(find "$GITHUB_WORKSPACE/output" -type f -name '*.apk' -print -quit)"
+
+      - name: Upload debug APK artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ManaOS-debug-APK
+          path: output/*.apk
+          if-no-files-found: error
+          retention-days: 14
