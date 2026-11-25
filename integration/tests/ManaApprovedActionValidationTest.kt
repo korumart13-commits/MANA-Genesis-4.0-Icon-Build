@@ -40,6 +40,16 @@ class ManaApprovedActionValidationTest {
     }
 
     @Test
+    fun includesOnlyFixedNotificationSettingsDestinations() {
+        assertEquals(ManaSettingsPage.NOTIFICATIONS, ManaApprovedActionValidation.settingsPage(
+            ManaCognitiveAction("settings.open_page", mapOf("page" to "notifications"))
+        ))
+        assertEquals(ManaSettingsPage.DO_NOT_DISTURB, ManaApprovedActionValidation.settingsPage(
+            ManaCognitiveAction("settings.open_page", mapOf("page" to "do_not_disturb"))
+        ))
+    }
+
+    @Test
     fun rejectsArbitrarySettingsActionsAndArguments() {
         assertNull(ManaApprovedActionValidation.settingsPage(
             ManaCognitiveAction("settings.change", mapOf("page" to "wifi"))
