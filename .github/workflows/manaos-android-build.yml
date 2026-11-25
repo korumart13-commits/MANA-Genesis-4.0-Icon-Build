@@ -61,6 +61,16 @@ jobs:
           chmod +x "$WRAPPER"
           echo "Using project: $PROJECT_DIR"
 
+      - name: Inspect source around known Kotlin syntax error
+        working-directory: ${{ steps.project.outputs.dir }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE="app/src/main/java/com/mana/os/app/MainActivity.kt"
+          echo "----- $FILE lines 45-70 -----"
+          nl -ba "$FILE" | sed -n '45,70p'
+          echo "----- end source excerpt -----"
+
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
 
