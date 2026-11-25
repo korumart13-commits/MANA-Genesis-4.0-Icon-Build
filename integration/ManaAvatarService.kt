@@ -11,6 +11,8 @@ import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
 import android.view.Gravity
+import android.view.MotionEvent
+import android.view.View
 import android.view.WindowManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -67,6 +69,45 @@ class ManaAvatarService : Service() {
         }
         avatar = web
         root.addView(web, FrameLayout.LayoutParams(-1, -1))
+        // Drag the avatar anywhere on screen. A short tap opens MANA's full interface.
+        var downX = 0f
+        var downY = 0f
+        var startX = 0
+        var startY = 0
+        var dragged = false
+        web.setOnTouchListener { _, event ->
+            val layout = overlay?.layoutParams as? WindowManager.LayoutParams
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    downX = event.rawX
+                    downY = event.rawY
+                    startX = layout?.x ?: 0
+                    startY = layout?.y ?: 0
+                    dragged = false
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = (event.rawX - downX).toInt()
+                    val dy = (event.rawY - downY).toInt()
+                    if (kotlin.math.abs(dx) + kotlin.math.abs(dy) > dp(8)) dragged = true
+                    if (dragged && layout != null) {
+                        layout.x = (startX - dx).coerceAtLeast(0)
+                        layout.y = (startY - dy).coerceAtLeast(0)
+                        runCatching { windowManager?.updateViewLayout(overlay, layout) }
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (!dragged) {
+                        val open = Intent(this, com.mana.os.app.ManaHomeActivity::class.java)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        startActivity(open)
+                    }
+                    true
+                }
+                else -> true
+            }
+        }
         val close = TextView(this).apply {
             text = "×"; textSize = 23f; setTextColor(Color.WHITE); gravity = Gravity.CENTER
             setBackgroundColor(Color.argb(210, 7, 25, 48))
