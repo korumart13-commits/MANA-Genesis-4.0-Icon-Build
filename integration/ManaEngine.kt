@@ -22,9 +22,10 @@ class ManaEngine(
     ): ManaCognitiveDecision {
         if (control.isStopRequested()) return stopped()
         val providers = buildList {
-            if (policy.preferGpt && gpt != null) add(gpt)
-            if (local != null) add(local)
-            if (!policy.preferGpt && gpt != null) add(gpt)
+            if (policy.preferLocal && local != null) add(local)
+            if (policy.preferLocal && gpt != null && policy.allowCloudFallback) add(gpt)
+            if (!policy.preferLocal && gpt != null) add(gpt)
+            if (!policy.preferLocal && local != null) add(local)
         }.distinct()
 
         if (providers.isEmpty()) {
@@ -60,9 +61,12 @@ class ManaEngine(
 }
 
 data class ManaEnginePolicy(
-    /** GPT is the primary intelligence when the owner has configured the MANA gateway. */
-    val preferGpt: Boolean = true,
-    /** If GPT is offline, allow an installed local model to answer with reduced capabilities. */
+    /** The on-device model is MANA's primary brain and works without a server. */
+    val preferLocal: Boolean = true,
+    /** Optional cloud reasoning is a secondary fallback when explicitly configured. */
+    val allowCloudFallback: Boolean = true,
+    /** Compatibility field for older call sites; provider order is controlled by preferLocal. */
+    @Deprecated("Use preferLocal") val preferGpt: Boolean = false,
     val allowFallback: Boolean = true
 )
 
