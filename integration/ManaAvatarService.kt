@@ -12,7 +12,6 @@ import android.os.Build
 import android.os.IBinder
 import android.view.Gravity
 import android.view.MotionEvent
-import android.view.View
 import android.view.WindowManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -93,7 +92,7 @@ class ManaAvatarService : Service() {
                     if (dragged && layout != null) {
                         layout.x = (startX - dx).coerceAtLeast(0)
                         layout.y = (startY - dy).coerceAtLeast(0)
-                        runCatching { windowManager?.updateViewLayout(overlay, layout) }
+                        runCatching { windowManager?.updateViewLayout(root, layout) }
                     }
                     true
                 }
