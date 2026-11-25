@@ -79,6 +79,109 @@ jobs:
           test -s "$TARGET"
           echo "Integrated central ManaGenesis bootstrap and self-development contracts."
 
+      - name: Integrate persistent self-development runtime
+        working-directory: ${{ steps.project.outputs.dir }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARGET="app/src/main/java/com/mana/os/integration/AndroidSelfDevelopment.kt"
+          mkdir -p "$(dirname "$TARGET")"
+          install -m 0644 "$GITHUB_WORKSPACE/integration/AndroidSelfDevelopment.kt" "$TARGET"
+          test -s "$TARGET"
+          echo "Integrated persistent local idea store and first-pass analyzer."
+
+      - name: Add self-development screen to MANA dashboard
+        working-directory: ${{ steps.project.outputs.dir }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          file = Path("app/src/main/java/com/mana/os/app/MainActivity.kt")
+          source = file.read_text(encoding="utf-8")
+
+          import_anchor = "import com.mana.os.cloud.ManaCloudClient\n"
+          import_line = "import com.mana.os.integration.AndroidSelfDevelopment\n"
+          if import_line not in source:
+              if import_anchor not in source:
+                  raise SystemExit("MainActivity import anchor not found; refusing unsafe patch.")
+              source = source.replace(import_anchor, import_anchor + import_line, 1)
+
+          button_anchor = '        addButton("Настроить MANA Cloud") { configureCloud() }\n'
+          button_line = '        addButton("Саморазвитие MANA") { showSelfDevelopment() }\n'
+          if button_line not in source:
+              if button_anchor not in source:
+                  raise SystemExit("Dashboard button anchor not found; refusing unsafe patch.")
+              source = source.replace(button_anchor, button_anchor + button_line, 1)
+
+          method_anchor = "    private fun downloadFromUrl() {\n"
+          method = """    private fun showSelfDevelopment() {
+          val engine = AndroidSelfDevelopment(this)
+          base("MANA • Саморазвитие", "Сбор идей, анализ и планирование улучшений")
+          addText("Саморазвитие: ${if (engine.isSelfDevelopmentEnabled()) "ВКЛЮЧЕНО" else "ОТКЛЮЧЕНО"}")
+          addText("Идей собрано: ${engine.ideas().size}. Предложений: ${engine.proposals().size}.")
+          addText("Источники: владелец, интернет, игры, приложения, баги, предупреждения безопасности и диагностика.")
+          addText("На этом этапе идеи сохраняются локально и анализируются. Автоматическое изменение исходников и установка обновлений ещё не включены.")
+          engine.proposals().takeLast(8).asReversed().forEach { proposal ->
+              addText("• ${proposal.title}\nРиск: ${proposal.risk}; тип: ${proposal.scope}; подтверждение: ${if (proposal.requiresUserApproval) "нужно" else "не требуется для подготовки к тестам"}.")
+          }
+          addButton("Добавить идею") {
+              val labels = arrayOf("Моё предложение", "Интернет", "Игра", "Приложение", "Обнаруженный баг", "Предупреждение безопасности", "Изученное знание", "Диагностика устройства", "Другой источник")
+              val sources = arrayOf(
+                  ManaGenesis.IdeaSource.OWNER, ManaGenesis.IdeaSource.INTERNET,
+                  ManaGenesis.IdeaSource.GAME, ManaGenesis.IdeaSource.APP,
+                  ManaGenesis.IdeaSource.BUG_REPORT, ManaGenesis.IdeaSource.SECURITY_ALERT,
+                  ManaGenesis.IdeaSource.LEARNED_KNOWLEDGE, ManaGenesis.IdeaSource.DEVICE_DIAGNOSTIC,
+                  ManaGenesis.IdeaSource.OTHER
+              )
+              AlertDialog.Builder(this).setTitle("Откуда идея?")
+                  .setItems(labels) { _, which ->
+                      val input = EditText(this).apply {
+                          hint = "Опиши идею, ошибку или найденную возможность"
+                          minLines = 3
+                          setSingleLine(false)
+                      }
+                      AlertDialog.Builder(this).setTitle("Новая идея").setView(input)
+                          .setNegativeButton("Отмена", null)
+                          .setPositiveButton("Сохранить") { _, _ ->
+                              runCatching { engine.collect(sources[which], input.text.toString()) }
+                                  .onSuccess { Toast.makeText(this, "Идея сохранена локально", Toast.LENGTH_SHORT).show() }
+                                  .onFailure { Toast.makeText(this, it.message ?: "Не удалось сохранить", Toast.LENGTH_LONG).show() }
+                              showSelfDevelopment()
+                          }.show()
+                  }.show()
+          }
+          addButton("Проанализировать собранные идеи") {
+              if (!engine.isSelfDevelopmentEnabled()) {
+                  Toast.makeText(this, "Саморазвитие отключено владельцем", Toast.LENGTH_LONG).show()
+              } else {
+                  val count = engine.analyze().size
+                  Toast.makeText(this, "Анализ завершён. Предложений: $count", Toast.LENGTH_SHORT).show()
+              }
+              showSelfDevelopment()
+          }
+          addButton(if (engine.isSelfDevelopmentEnabled()) "Отключить саморазвитие" else "Включить саморазвитие") {
+              engine.setSelfDevelopmentEnabled(!engine.isSelfDevelopmentEnabled())
+              showSelfDevelopment()
+          }
+          addButton("Назад") { showDashboard() }
+      }
+
+  """
+          if "    private fun showSelfDevelopment() {" not in source:
+              if method_anchor not in source:
+                  raise SystemExit("MainActivity method anchor not found; refusing unsafe patch.")
+              source = source.replace(method_anchor, method + method_anchor, 1)
+
+          file.write_text(source, encoding="utf-8")
+          check = file.read_text(encoding="utf-8")
+          for marker in (import_line, button_line, "private fun showSelfDevelopment()"):
+              if marker not in check:
+                  raise SystemExit("Self-development UI patch verification failed: " + marker)
+          print("Added MANA self-development screen and verified all insertion points.")
+          PY
+
       - name: Bundle MANA OS project license into app assets
         working-directory: ${{ steps.project.outputs.dir }}
         shell: bash
