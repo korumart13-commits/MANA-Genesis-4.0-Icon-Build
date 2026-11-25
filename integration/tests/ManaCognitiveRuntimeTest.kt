@@ -135,4 +135,43 @@ class ManaCognitiveRuntimeTest {
         assertEquals(0, rememberCalls)
         assertEquals(0, toolCalls)
     }
+    @Test
+    fun ownerApprovalRequestIsSurfacedAndActionIsNeverExecuted() {
+        val broker = ManaOwnerApprovalBroker()
+        var toolCalls = 0
+        val action = ManaCognitiveAction("settings.change", mapOf("setting" to "dark_mode", "value" to "true"))
+        val model = object : ManaReasoningModel {
+            override fun decide(context: ManaCognitiveContext) = ManaCognitiveDecision(
+                summary = "Включить тёмную тему",
+                actions = listOf(action),
+                stopAfterActions = true,
+                finalAnswer = "Готово, включено."
+            )
+        }
+        val memory = object : ManaCognitiveMemory {
+            override fun recall(query: String, limit: Int) = emptyList<ManaCognitiveMemoryEntry>()
+            override fun remember(entry: ManaCognitiveMemoryEntry) {}
+        }
+        val tools = object : ManaCognitiveTools {
+            override fun availableTools() = emptyList<String>()
+            override fun execute(action: ManaCognitiveAction): ManaCognitiveToolResult {
+                toolCalls++
+                return ManaCognitiveToolResult(true, "unexpected")
+            }
+        }
+
+        val result = ManaCognitiveRuntime(
+            model = model,
+            memory = memory,
+            tools = tools,
+            policy = ManaDefaultCognitivePolicy(),
+            approvalBroker = broker
+        ).respond("Включи тёмную тему", "approval-test")
+
+        assertEquals(0, toolCalls)
+        assertEquals(1, result.approvalRequests.size)
+        assertEquals(action.arguments, result.approvalRequests.single().arguments)
+        assertTrue(result.answer.contains("ничего не изменено"))
+    }
+
 }
