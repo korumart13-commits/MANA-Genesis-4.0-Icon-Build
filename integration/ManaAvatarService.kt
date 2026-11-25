@@ -23,6 +23,7 @@ class ManaAvatarService : Service() {
     private var windowManager: WindowManager? = null
     private var overlay: FrameLayout? = null
     private var avatar: WebView? = null
+    private var identityObserver: AutoCloseable? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -69,11 +70,30 @@ class ManaAvatarService : Service() {
             settings.allowContentAccess = false
             settings.allowFileAccessFromFileURLs = true
             settings.allowUniversalAccessFromFileURLs = false
-            webViewClient = WebViewClient()
+            webViewClient = object : WebViewClient() {
+                override fun onPageFinished(view: WebView, url: String?) {
+                    super.onPageFinished(view, url)
+                    val snapshot = ManaIdentityState.snapshot()
+                    val state = org.json.JSONObject.quote(snapshot.state.name)
+                    val detail = org.json.JSONObject.quote(snapshot.detail.orEmpty())
+                    view.evaluateJavascript(
+                        "window.ManaAvatar && window.ManaAvatar.setPresenceState($state, $detail);", null
+                    )
+                }
+            }
             setBackgroundColor(Color.TRANSPARENT)
             loadUrl("file:///android_asset/mana-avatar/index.html")
         }
         avatar = web
+        identityObserver = ManaIdentityState.observe { snapshot ->
+            val state = org.json.JSONObject.quote(snapshot.state.name)
+            val detail = org.json.JSONObject.quote(snapshot.detail.orEmpty())
+            web.post {
+                web.evaluateJavascript(
+                    "window.ManaAvatar && window.ManaAvatar.setPresenceState($state, $detail);", null
+                )
+            }
+        }
         root.addView(web, FrameLayout.LayoutParams(-1, -1))
         // Drag the avatar anywhere on screen. A short tap opens MANA's full interface.
         var downX = 0f
@@ -134,6 +154,8 @@ class ManaAvatarService : Service() {
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
 
     override fun onDestroy() {
+        identityObserver?.close()
+        identityObserver = null
         overlay?.let { runCatching { windowManager?.removeView(it) } }
         overlay = null
         avatar?.stopLoading(); avatar?.destroy(); avatar = null
