@@ -38,6 +38,7 @@ class ManaDefaultCognitivePolicy : ManaCognitivePolicy {
             "apps.launch",
             "settings.open_page",
             "device.set_dnd_filter",
+            "device.set_audio_volume",
             "settings.change",
             "calls.answer",
             "messages.send",
