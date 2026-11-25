@@ -201,7 +201,7 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
             com.mana.os.integration.ManaCognitiveMemoryEntry(
                 conversationId = conversationId,
                 kind = "chat_exchange",
-                text = "Ты: ${userText.take(500)}\\nМана: ${assistantText.take(500)}"
+                text = "Ты: ${userText.take(500)}\nМана: ${assistantText.take(500)}"
             )
         )
     }
