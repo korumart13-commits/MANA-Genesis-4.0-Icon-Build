@@ -47,6 +47,10 @@ def main() -> None:
     app_source_dir = project / "app/src/main/java/com/mana/os/app"
     app_source_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy2(home_source, app_source_dir / "ManaHomeActivity.kt")
+    diary_source = integration / "ManaDiaryActivity.kt"
+    if not diary_source.is_file() or diary_source.stat().st_size == 0:
+        raise SystemExit("MANA diary activity source is missing or empty.")
+    shutil.copy2(diary_source, app_source_dir / "ManaDiaryActivity.kt")
 
     assets = project / "app/src/main/assets"
     assets.mkdir(parents=True, exist_ok=True)
@@ -111,6 +115,14 @@ def main() -> None:
             </intent-filter>
         </activity>
 """
+    diary_activity = '        <activity android:name="com.mana.os.app.ManaDiaryActivity" android:exported="false" android:label="Дневник MANA" />\\n'
+    if "com.mana.os.app.ManaDiaryActivity" not in manifest_text:
+        manifest_text = replace_once(
+            manifest_text,
+            '        <activity android:name="com.mana.os.app.MainActivity" android:exported="true">',
+            diary_activity + '        <activity android:name="com.mana.os.app.MainActivity" android:exported="true">',
+            "MANA diary activity manifest entry",
+        )
     manifest_text = replace_once(
         manifest_text,
         '        <activity android:name="com.mana.os.app.MainActivity" android:exported="true">',
