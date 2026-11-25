@@ -49,6 +49,9 @@ The build branch now contains `integration/ManaGatewayReasoningModel.kt`:
 
 - `ManaGatewayConfig` accepts only the exact configured HTTPS host, standard HTTPS port, and `/v1/mana/respond` route. It rejects URL credentials, query strings, fragments, host mismatches, and HTTP.
 - `ManaGatewayCredentialProvider` is an injection point for a short-lived, revocable device bearer token. No token is bundled, generated, or persisted by this adapter.
+- `ManaAndroidGatewayCredentialStore` encrypts an enrolled device token with an AES-GCM key held by Android Keystore; the app can revoke the stored credential and its key.
+- `ManaGatewayChatService` connects the adapter to the bounded cognitive runtime and exposes a visible Stop control in the MANA chat. No action tools are advertised or executed until real Android tool adapters exist.
+- The build reads optional `MANA_GATEWAY_ENDPOINT` and `MANA_GATEWAY_HOST` repository variables. Both must be set together and pass HTTPS/host/route validation. If absent, a generated blank configuration keeps the app in offline mode; the user is not asked to type a server URL.
 - `ManaHttpsUrlConnectionTransport` disables redirects, applies bounded connect/read timeouts, limits response bytes, and disconnects when the host cancellation signal fires.
 - `ManaAndroidGatewayJsonCodec` serializes bounded context and parses only bounded structured answer/action proposals. It does not accept executable code. The existing local policy remains authoritative for every proposed action.
 - Non-2xx responses, missing credentials, invalid endpoint configuration, cancellation, and oversized payloads fail closed.
