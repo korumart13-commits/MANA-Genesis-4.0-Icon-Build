@@ -70,6 +70,7 @@ def main() -> None:
     app_test_target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(cognitive_test_source, app_test_target)
 
+    junit_dependency = 'testImplementation("junit:junit:4.13.2")'
     app_gradle = project / "app/build.gradle.kts"
     if not app_gradle.is_file():
         raise SystemExit(f"App Gradle build file is missing: {app_gradle}")
@@ -86,7 +87,6 @@ def main() -> None:
     if not core_gradle.is_file():
         raise SystemExit(f"Core Gradle build file is missing: {core_gradle}")
     gradle_source = core_gradle.read_text(encoding="utf-8")
-    junit_dependency = 'testImplementation("junit:junit:4.13.2")'
     if junit_dependency not in gradle_source:
         gradle_source += (
             "\n\ndependencies {\n"
