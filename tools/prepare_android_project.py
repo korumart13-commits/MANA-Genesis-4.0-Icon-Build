@@ -175,6 +175,9 @@ def main() -> None:
     test_target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(test_source, test_target)
 
+    app_test_target = project / "app/src/test/java/com/mana/os/integration/ManaCognitiveRuntimeTest.kt"
+    app_test_target.parent.mkdir(parents=True, exist_ok=True)
+
     engine_test_source = integration / "tests" / "ManaEngineTest.kt"
     if not engine_test_source.is_file() or engine_test_source.stat().st_size == 0:
         raise SystemExit(f"Required MANA Engine unit test source is missing or empty: {engine_test_source}")
