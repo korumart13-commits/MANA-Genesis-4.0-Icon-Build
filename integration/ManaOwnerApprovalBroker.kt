@@ -93,6 +93,14 @@ class ManaOwnerApprovalBroker(
         return matches
     }
 
+    /** Discard a confirmed token when no execution adapter is connected; the action remains unperformed. */
+    @Synchronized
+    fun discardApprovedToken(token: ManaOwnerApprovalToken): Boolean {
+        val item = issued.remove(token.tokenId) ?: return false
+        record(item.actionName, "approved_not_executed", "no_execution_adapter_connected")
+        return true
+    }
+
     @Synchronized
     fun deny(requestId: String): Boolean {
         val item = pending.remove(requestId) ?: return false
