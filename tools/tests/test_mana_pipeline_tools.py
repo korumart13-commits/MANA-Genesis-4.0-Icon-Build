@@ -85,6 +85,7 @@ class ManaToolTests(unittest.TestCase):
         self.assertIn("private val listeners = CopyOnWriteArrayList<() -> Unit>()", source)
         self.assertIn("fun requestStop(): Boolean", source)
         self.assertIn("override fun onStop(listener: () -> Unit): AutoCloseable", source)
+        self.assertIn("fired.compareAndSet(false, true)", source)
         self.assertIn("listeners.forEach { listener -> runCatching(listener) }", source)
         self.assertIn("interface ManaCancellableReasoningModel : ManaReasoningModel", source)
         self.assertIn("interface ManaCancellableCognitiveTools : ManaCognitiveTools", source)
