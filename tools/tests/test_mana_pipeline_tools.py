@@ -261,7 +261,7 @@ class ManaToolTests(unittest.TestCase):
         self.assertIn('"apps.launch"', policy)
         self.assertIn('action.arguments.keys != setOf("package_name")', validation)
         self.assertIn('broker.consumeForExactAction(token, action)', executor)
-        self.assertLess(executor.index('broker.consumeForExactAction(token, action)'), executor.index('app.startActivity(launchIntent)'))
+        self.assertLess(executor.index('broker.consumeForExactAction(token, action)'), executor.index('app.startActivity(intent)'))
         self.assertIn('confirmAndLaunch(requestId)', service)
         self.assertIn('previewLaunchLabel(request)', service)
         self.assertIn('setPositiveButton(when {', home)
@@ -289,7 +289,7 @@ class ManaToolTests(unittest.TestCase):
         self.assertIn('ManaSettingsPage.values().firstOrNull', validation)
         self.assertIn('Intent(page.androidAction)', executor)
         self.assertIn('broker.consumeForExactAction(token, action)', executor)
-        self.assertLess(executor.index('broker.consumeForExactAction(token, action)'), executor.index('app.startActivity(launchIntent)'))
+        self.assertLess(executor.index('broker.consumeForExactAction(token, action)'), executor.index('app.startActivity(intent)'))
         self.assertIn('supportedSettingsPage', home)
         self.assertIn('MANA не будет менять переключатели или параметры автоматически', home)
 
