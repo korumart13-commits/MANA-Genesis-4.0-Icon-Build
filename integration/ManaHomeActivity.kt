@@ -247,7 +247,7 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
         val summary = if (entries.isEmpty()) {
             "Локальная память пока пуста."
         } else {
-            entries.joinToString("\\n\\n") { entry ->
+            entries.joinToString("\n\n") { entry ->
                 val date = java.text.DateFormat.getDateTimeInstance().format(java.util.Date(entry.timestampMillis))
                 "[$date] ${entry.text.take(350)}"
             }
