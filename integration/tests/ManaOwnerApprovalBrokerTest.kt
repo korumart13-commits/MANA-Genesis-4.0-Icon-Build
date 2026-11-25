@@ -10,6 +10,7 @@ class ManaOwnerApprovalBrokerTest {
         val broker = ManaOwnerApprovalBroker(clock = { now })
         val action = ManaCognitiveAction("settings.change", mapOf("setting" to "dark_mode", "value" to "true"))
         val request = broker.requestApproval(action, "Включить тёмную тему")!!
+        assertEquals(action.arguments, request.arguments)
 
         assertNull(broker.confirmFromOwnerUi(request.requestId, false))
         val second = broker.requestApproval(action, "Включить тёмную тему")!!
