@@ -236,6 +236,9 @@ class ManaToolTests(unittest.TestCase):
         self.assertIn("approvalBroker = approvalBroker", service)
         self.assertIn("discardApprovedToken(token)", service)
         self.assertIn("approvalRequests += request", runtime)
+        self.assertIn("showPermissionCenter()", activity)
+        self.assertIn("approvalAuditEvents()", service)
+        self.assertIn("pendingApprovalRequests()", service)
         self.assertIn("ничего не изменено", runtime)
 
     def test_gateway_deployment_config_is_optional_and_pinned(self):
