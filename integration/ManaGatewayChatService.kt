@@ -29,9 +29,13 @@ class ManaGatewayChatService(
                     endpoint = ManaGatewayDeploymentConfig.ENDPOINT,
                     expectedHost = ManaGatewayDeploymentConfig.EXPECTED_HOST
                 )
-                val model = ManaGatewayReasoningModel(
-                    config = config,
-                    credentials = ManaAndroidGatewayCredentialStore(appContext)
+                val credentials = ManaAndroidGatewayCredentialStore(appContext)
+                // All reasoning flows through the MANA-owned engine. GPT is served by the
+                // MANA gateway; the OpenAI API key never ships in this Android application.
+                val model = ManaEngine(
+                    gpt = ManaGatewayGptProvider(config, credentials),
+                    local = null,
+                    policy = ManaEnginePolicy(preferGpt = true, allowFallback = true)
                 )
                 val runtime = ManaCognitiveRuntime(
                     model = model,
