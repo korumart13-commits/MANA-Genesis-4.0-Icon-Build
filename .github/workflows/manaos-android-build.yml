@@ -9,7 +9,7 @@ on:
       - "integration/**"
       - "tools/**"
   push:
-    branches: [main, mana-foundation-audit]
+    branches: [main]
     paths:
       - ".github/workflows/**"
       - "docs/**"
