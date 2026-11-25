@@ -115,7 +115,7 @@ def main() -> None:
             </intent-filter>
         </activity>
 """
-    diary_activity = '        <activity android:name="com.mana.os.app.ManaDiaryActivity" android:exported="false" android:label="Дневник MANA" />\\n'
+    diary_activity = '        <activity android:name="com.mana.os.app.ManaDiaryActivity" android:exported="false" android:label="Дневник MANA" />\n'
     if "com.mana.os.app.ManaDiaryActivity" not in manifest_text:
         manifest_text = replace_once(
             manifest_text,
