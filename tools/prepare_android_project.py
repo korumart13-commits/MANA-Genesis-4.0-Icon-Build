@@ -5,9 +5,26 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 from pathlib import Path
 from urllib.parse import urlsplit
+
+
+def ensure_internet_permission(project: Path) -> None:
+    """Ensure the generated MANA app can fetch its pinned first-run local model."""
+    manifest = project / "app/src/main/AndroidManifest.xml"
+    if not manifest.is_file():
+        raise SystemExit(f"Android app manifest is missing: {manifest}")
+    source = manifest.read_text(encoding="utf-8")
+    permission = '    <uses-permission android:name="android.permission.INTERNET" />'
+    if 'android.permission.INTERNET' in source:
+        return
+    match = re.search(r"<manifest\\b[^>]*>", source)
+    if not match:
+        raise SystemExit("Could not safely locate the Android manifest root element.")
+    source = source[:match.end()] + "\\n" + permission + source[match.end():]
+    manifest.write_text(source, encoding="utf-8")
 
 
 def configure_litert_lm(project: Path) -> None:
@@ -134,6 +151,7 @@ def main() -> None:
     target_dir.mkdir(parents=True, exist_ok=True)
     write_gateway_deployment_config(project, os.environ.get("MANA_GATEWAY_ENDPOINT", ""), os.environ.get("MANA_GATEWAY_HOST", ""))
     write_voice_deployment_config(project, os.environ.get("MANA_TTS_ENDPOINT", ""), os.environ.get("MANA_TTS_HOST", ""))
+    ensure_internet_permission(project)
     configure_litert_lm(project)
     for name in ("ManaGenesis.kt", "ManaEngine.kt", "ManaLiteRtLmRuntime.kt", "ManaSystemKernel.kt", "ManaCoreKernel.kt", "AndroidSelfDevelopment.kt", "ManaDevelopmentPipeline.kt", "ManaCognitiveRuntime.kt", "ManaLocalCognitiveMemory.kt", "ManaDialogueState.kt", "ManaDefaultCognitivePolicy.kt", "ManaGatewayReasoningModel.kt", "ManaAndroidGatewayCredentialStore.kt", "ManaGatewayChatService.kt", "ManaVoiceGatewayClient.kt", "ManaReadOnlyToolRegistry.kt", "ManaAndroidReadOnlyTools.kt", "ManaOwnerApprovalBroker.kt", "ManaApprovedActionValidation.kt", "ManaAndroidApprovedActionExecutor.kt"):
         source = integration / name
