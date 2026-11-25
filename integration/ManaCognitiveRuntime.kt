@@ -1,5 +1,8 @@
 package com.mana.os.integration
 
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicBoolean
+
 /**
  * MANA cognitive orchestration layer.
  *
@@ -19,6 +22,9 @@ class ManaCognitiveRuntime(
 
     fun respond(input: String, conversationId: String): ManaCognitiveResult {
         require(input.isNotBlank()) { "Input must not be blank." }
+        if (control.isStopRequested()) {
+            return ManaCognitiveResult("Остановлено по команде владельца.", 0, emptyList(), emptyList())
+        }
         val observations = mutableListOf<String>()
         val toolEvents = mutableListOf<ManaToolEvent>()
         val recalled = memory.recall(input, limit = 8)
@@ -31,17 +37,24 @@ class ManaCognitiveRuntime(
                 break
             }
             cycles++
-            val decision = model.decide(
-                ManaCognitiveContext(
-                    userInput = input,
-                    conversationId = conversationId,
-                    cycle = cycles,
-                    recalledMemories = recalled,
-                    recentDialogue = dialogueState?.recent(limit = 12).orEmpty(),
-                    observations = observations.toList(),
-                    availableTools = tools.availableTools()
-                )
+            val context = ManaCognitiveContext(
+                userInput = input,
+                conversationId = conversationId,
+                cycle = cycles,
+                recalledMemories = recalled,
+                recentDialogue = dialogueState?.recent(limit = 12).orEmpty(),
+                observations = observations.toList(),
+                availableTools = tools.availableTools()
             )
+            val decision = if (model is ManaCancellableReasoningModel) {
+                model.decide(context, control)
+            } else {
+                model.decide(context)
+            }
+            if (control.isStopRequested()) {
+                answer = "Остановлено по команде владельца."
+                break
+            }
             decision.summary.takeIf { it.isNotBlank() }?.let(observations::add)
 
             if (decision.actions.isEmpty()) {
@@ -98,13 +111,15 @@ class ManaCognitiveRuntime(
             observations.takeLast(3).joinToString("; ").ifBlank { "пока недостаточно данных." }
 
         // Save user input and a short outcome summary, not hidden internal reasoning.
-        memory.remember(
-            ManaCognitiveMemoryEntry(
-                conversationId = conversationId,
-                kind = "interaction_summary",
-                text = "Запрос: ${input.take(500)}\nИтог: ${finalText.take(1000)}"
+        if (!control.isStopRequested()) {
+            memory.remember(
+                ManaCognitiveMemoryEntry(
+                    conversationId = conversationId,
+                    kind = "interaction_summary",
+                    text = "Запрос: ${input.take(500)}\nИтог: ${finalText.take(1000)}"
+                )
             )
-        )
+        }
         return ManaCognitiveResult(finalText, cycles, toolEvents, observations.takeLast(5))
     }
 }
@@ -160,6 +175,14 @@ interface ManaReasoningModel {
     fun decide(context: ManaCognitiveContext): ManaCognitiveDecision
 }
 
+/** Optional model adapter contract for providers that support request cancellation. */
+interface ManaCancellableReasoningModel : ManaReasoningModel {
+    fun decide(context: ManaCognitiveContext, control: ManaRuntimeControl): ManaCognitiveDecision
+
+    override fun decide(context: ManaCognitiveContext): ManaCognitiveDecision =
+        decide(context, ManaRuntimeControl.NEVER_STOP)
+}
+
 interface ManaCognitiveMemory {
     fun recall(query: String, limit: Int): List<ManaCognitiveMemoryEntry>
     fun remember(entry: ManaCognitiveMemoryEntry)
@@ -187,9 +210,48 @@ interface ManaCognitivePolicy {
 interface ManaRuntimeControl {
     fun isStopRequested(): Boolean
 
+    /**
+     * Register a callback that interrupts an in-flight request (for example, an HTTP call).
+     * Adapters must close the returned handle when their operation finishes.
+     */
+    fun onStop(listener: () -> Unit): AutoCloseable {
+        if (isStopRequested()) listener()
+        return AutoCloseable { }
+    }
+
     companion object {
         val NEVER_STOP = object : ManaRuntimeControl {
             override fun isStopRequested(): Boolean = false
         }
+    }
+}
+
+/**
+ * Host-owned, thread-safe stop signal. The owner/UI calls requestStop(); registered model and
+ * tool adapters receive callbacks and should cancel their in-flight work before further side effects.
+ */
+class ManaCancellationSignal : ManaRuntimeControl {
+    private val stopped = AtomicBoolean(false)
+    private val listeners = CopyOnWriteArrayList<() -> Unit>()
+
+    override fun isStopRequested(): Boolean = stopped.get()
+
+    override fun onStop(listener: () -> Unit): AutoCloseable {
+        if (isStopRequested()) {
+            runCatching(listener)
+            return AutoCloseable { }
+        }
+        listeners.add(listener)
+        // Close the race where stop is requested between the first check and registration.
+        if (isStopRequested() && listeners.remove(listener)) runCatching(listener)
+        return AutoCloseable { listeners.remove(listener) }
+    }
+
+    /** Returns true only for the first stop request. */
+    fun requestStop(): Boolean {
+        if (!stopped.compareAndSet(false, true)) return false
+        listeners.forEach { listener -> runCatching(listener) }
+        listeners.clear()
+        return true
     }
 }
