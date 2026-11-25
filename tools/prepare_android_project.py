@@ -142,8 +142,13 @@ def main() -> None:
         renderer_dir = args.avatar_renderer_dir.resolve()
         if not avatar_file.is_file() or avatar_file.stat().st_size < 4096:
             raise SystemExit("Generated MANA avatar GLB is missing or unexpectedly small.")
-        for renderer_name in ("three.module.js", "GLTFLoader.js"):
-            renderer_file = renderer_dir / renderer_name
+        required_renderer_files = (
+            renderer_dir / "three.module.js",
+            renderer_dir / "three.core.js",
+            renderer_dir / "examples/jsm/loaders/GLTFLoader.js",
+            renderer_dir / "examples/jsm/utils/BufferGeometryUtils.js",
+        )
+        for renderer_file in required_renderer_files:
             if not renderer_file.is_file() or renderer_file.stat().st_size < 1024:
                 raise SystemExit(f"Required local 3D renderer file is missing: {renderer_file}")
         avatar_assets = assets / "mana-avatar"
@@ -151,7 +156,11 @@ def main() -> None:
         shutil.copy2(avatar_file, avatar_assets / "mana_avatar.glb")
         shutil.copy2(integration / "avatar" / "index.html", avatar_assets / "index.html")
         shutil.copy2(renderer_dir / "three.module.js", avatar_assets / "three.module.js")
-        shutil.copy2(renderer_dir / "GLTFLoader.js", avatar_assets / "GLTFLoader.js")
+        shutil.copy2(renderer_dir / "three.core.js", avatar_assets / "three.core.js")
+        for relative in ("examples/jsm/loaders/GLTFLoader.js", "examples/jsm/utils/BufferGeometryUtils.js"):
+            target = avatar_assets / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(renderer_dir / relative, target)
         shutil.copy2(integration / "avatar" / "THREE-LICENSE.txt", avatar_assets / "THREE-LICENSE.txt")
 
     test_source = integration / "tests" / "ManaCoreTest.kt"
