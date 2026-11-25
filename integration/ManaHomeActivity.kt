@@ -143,7 +143,7 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
             startActivity(Intent(this, ManaLifeManagerActivity::class.java))
         }
         content.addView(lifeManagerButton, marginTop(8))
-        val modelButton = actionButton("Подготовить встроенный локальный ИИ · 347 МБ") {
+        val modelButton = actionButton("Подготовить локальный ИИ MANA · 347 МБ") {
             status.text = "MANA загружает и проверяет локальную модель Qwen3…"
             gatewayChat.prepareLocalModel { _, detail ->
                 runOnUiThread { status.text = detail; toast(detail) }
@@ -206,7 +206,7 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
         val text = message.text.toString().trim()
         if (text.isEmpty()) return
         if (gatewayChat.isConfigured() || gatewayChat.canStartLocalSetup()) {
-            chatLog.text = "Ты: $text\n\nМана: " + if (gatewayChat.isConfigured()) "подключаю интеллект MANA…" else "запускаю локальную модель на телефоне…"
+            chatLog.text = "Ты: $text\n\nМана: " + if (gatewayChat.isConfigured()) "подключаю интеллект MANA…" else if (gatewayChat.hasLocalModel()) "запускаю локальную модель на телефоне…" else "подготавливаю локальный ИИ MANA (около 347 МБ)…"
             message.setText("")
             (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
                 .hideSoftInputFromWindow(message.windowToken, 0)
