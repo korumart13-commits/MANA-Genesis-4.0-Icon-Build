@@ -206,6 +206,23 @@ class ManaToolTests(unittest.TestCase):
         self.assertIn('Installed-app inventory is intentionally not sent', source)
         self.assertNotIn('QUERY_ALL_PACKAGES', source)
 
+    def test_owner_approval_broker_is_exact_action_bound_and_packaged(self):
+        integration = Path(__file__).resolve().parents[2] / "integration"
+        source = (integration / "ManaOwnerApprovalBroker.kt").read_text(encoding="utf-8")
+        test_source = (integration / "tests" / "ManaOwnerApprovalBrokerTest.kt").read_text(encoding="utf-8")
+        prepare_source = (TOOLS / "prepare_android_project.py").read_text(encoding="utf-8")
+        self.assertIn('"ManaOwnerApprovalBroker.kt"', prepare_source)
+        self.assertIn('ManaDefaultCognitivePolicy().check(action) != ManaActionVerdict.REQUIRES_OWNER_CONFIRMATION', source)
+        self.assertIn('confirmFromOwnerUi', source)
+        self.assertIn('consumeForExactAction', source)
+        self.assertIn('MessageDigest.getInstance("SHA-256")', source)
+        self.assertIn('MAX_TTL_MILLIS = 120_000L', source)
+        self.assertIn('MAX_AUDIT_EVENTS = 100', source)
+        self.assertIn('issued.remove(token.tokenId)', source)
+        self.assertIn('tokenCannotAuthorizeChangedArgumentsOrDifferentAction', test_source)
+        self.assertIn('approvalExpiresAndCannotBeReused', test_source)
+        self.assertIn('auditDoesNotStoreArgumentValuesAndIsBounded', test_source)
+
     def test_gateway_deployment_config_is_optional_and_pinned(self):
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp)
