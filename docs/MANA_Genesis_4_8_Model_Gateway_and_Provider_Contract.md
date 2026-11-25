@@ -129,3 +129,16 @@ The first side-effecting adapter is deliberately narrow.
 - On the explicit owner button, the broker issues a short-lived token; the executor consumes it for the exact action immediately before calling Android's package launch intent. The launch intent is obtained from PackageManager, never supplied by the model.
 - Android still decides whether the app can be launched. No runtime permission, default role, root access, or system privilege is granted by this feature.
 - All other side-effecting actions remain unavailable and are declined by the UI until separately implemented and reviewed.
+
+
+## Owner-approved Android settings navigation
+
+The next safe system-integration stage adds `settings.open_page`. It accepts exactly one `page` argument and only these fixed values:
+
+- `wifi` — Android Wi-Fi settings
+- `bluetooth` — Android Bluetooth settings
+- `display` — Android display settings
+- `sound` — Android sound settings
+- `battery` — Android battery-saver settings
+
+The owner confirmation dialog displays the resolved page name. The executor creates the Android intent from a fixed internal mapping, checks that Android can resolve it, consumes the one-time token for the exact action, and only then opens the system page. Model-provided intent actions, component names, URLs, arbitrary settings pages, and extra arguments are rejected. This feature opens Android settings; it does not change switches or values itself. All other system modifications remain unavailable.
