@@ -21,6 +21,20 @@ class ManaToolTests(unittest.TestCase):
             text = source.read_text(encoding="utf-8")
             self.assertNotIn("ifBlank { null }", text, str(source))
 
+    def test_cognitive_runtime_is_bounded_and_has_default_deny_policy_contract(self):
+        integration = Path(__file__).resolve().parents[2] / "integration"
+        source = (integration / "ManaCognitiveRuntime.kt").read_text(encoding="utf-8")
+        self.assertIn("require(maxCycles in 1..8)", source)
+        self.assertIn("policy.check(action)", source)
+        self.assertIn("ManaActionVerdict.DENY", source)
+        self.assertIn("private chain-of-thought", source)
+        self.assertIn("unknown tools and sensitive actions", source.lower())
+
+    def test_android_packaging_includes_cognitive_runtime(self):
+        prepare = TOOLS / "prepare_android_project.py"
+        source = prepare.read_text(encoding="utf-8")
+        self.assertIn('"ManaCognitiveRuntime.kt"', source)
+
     def run_patch_gate(self, project: Path, patch_text: str, *extra: str):
         patch = project.parent / "proposal.patch"
         patch.write_text(patch_text, encoding="utf-8")
