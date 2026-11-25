@@ -24,6 +24,20 @@ class ManaCognitiveRuntime(
     init { require(maxCycles in 1..8) }
 
     fun respond(input: String, conversationId: String): ManaCognitiveResult {
+        ManaIdentityState.setState(ManaPresenceState.THINKING, "Обрабатываю запрос")
+        return try {
+            respondInternal(input, conversationId)
+        } catch (failure: Throwable) {
+            ManaIdentityState.setState(ManaPresenceState.ERROR, failure.message ?: "Ошибка когнитивного ядра")
+            throw failure
+        } finally {
+            if (ManaIdentityState.snapshot().state == ManaPresenceState.THINKING) {
+                ManaIdentityState.setState(ManaPresenceState.IDLE)
+            }
+        }
+    }
+
+    private fun respondInternal(input: String, conversationId: String): ManaCognitiveResult {
         require(input.isNotBlank()) { "Input must not be blank." }
         if (control.isStopRequested()) {
             return ManaCognitiveResult("Остановлено по команде владельца.", 0, emptyList(), emptyList())
