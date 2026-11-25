@@ -20,6 +20,15 @@ enum class ManaDndFilter(val key: String, val label: String, val androidFilter: 
     ALL("all", "Обычные уведомления (выключить «Не беспокоить»)", android.app.NotificationManager.INTERRUPTION_FILTER_ALL)
 }
 
+enum class ManaAudioStream(val key: String, val label: String, val androidStream: Int) {
+    RING("ring", "Звонок", android.media.AudioManager.STREAM_RING),
+    MEDIA("media", "Мультимедиа", android.media.AudioManager.STREAM_MUSIC)
+}
+
+data class ManaAudioVolumeRequest(val stream: ManaAudioStream, val percent: Int) {
+    val label: String get() = "${stream.label}: $percent%"
+}
+
 object ManaApprovedActionValidation {
     fun launchPackage(action: ManaCognitiveAction): String? {
         if (action.name != "apps.launch" || action.arguments.keys != setOf("package_name")) return null
@@ -39,5 +48,15 @@ object ManaApprovedActionValidation {
         if (action.name != "device.set_dnd_filter" || action.arguments.keys != setOf("filter")) return null
         val key = action.arguments["filter"] ?: return null
         return ManaDndFilter.values().firstOrNull { it.key == key }
+    }
+
+    fun audioVolume(action: ManaCognitiveAction): ManaAudioVolumeRequest? {
+        if (action.name != "device.set_audio_volume" ||
+            action.arguments.keys != setOf("stream", "percent")) return null
+        val streamKey = action.arguments["stream"] ?: return null
+        val percentText = action.arguments["percent"] ?: return null
+        if (!percentText.matches(Regex("0|[1-9][0-9]?|100"))) return null
+        val stream = ManaAudioStream.values().firstOrNull { it.key == streamKey } ?: return null
+        return ManaAudioVolumeRequest(stream, percentText.toInt())
     }
 }
