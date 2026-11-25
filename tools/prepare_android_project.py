@@ -153,7 +153,7 @@ def main() -> None:
     write_voice_deployment_config(project, os.environ.get("MANA_TTS_ENDPOINT", ""), os.environ.get("MANA_TTS_HOST", ""))
     ensure_internet_permission(project)
     configure_litert_lm(project)
-    for name in ("ManaGenesis.kt", "ManaEngine.kt", "ManaLiteRtLmRuntime.kt", "ManaSystemKernel.kt", "ManaCoreKernel.kt", "AndroidSelfDevelopment.kt", "ManaDevelopmentPipeline.kt", "ManaCognitiveRuntime.kt", "ManaLocalCognitiveMemory.kt", "ManaDialogueState.kt", "ManaDefaultCognitivePolicy.kt", "ManaGatewayReasoningModel.kt", "ManaAndroidGatewayCredentialStore.kt", "ManaGatewayChatService.kt", "ManaVoiceGatewayClient.kt", "ManaReadOnlyToolRegistry.kt", "ManaAndroidReadOnlyTools.kt", "ManaOwnerApprovalBroker.kt", "ManaApprovedActionValidation.kt", "ManaAndroidApprovedActionExecutor.kt"):
+    for name in ("ManaGenesis.kt", "ManaEngine.kt", "ManaGrowthEngine.kt", "ManaLiteRtLmRuntime.kt", "ManaSystemKernel.kt", "ManaCoreKernel.kt", "AndroidSelfDevelopment.kt", "ManaDevelopmentPipeline.kt", "ManaCognitiveRuntime.kt", "ManaLocalCognitiveMemory.kt", "ManaDialogueState.kt", "ManaDefaultCognitivePolicy.kt", "ManaGatewayReasoningModel.kt", "ManaAndroidGatewayCredentialStore.kt", "ManaGatewayChatService.kt", "ManaVoiceGatewayClient.kt", "ManaReadOnlyToolRegistry.kt", "ManaAndroidReadOnlyTools.kt", "ManaOwnerApprovalBroker.kt", "ManaApprovedActionValidation.kt", "ManaAndroidApprovedActionExecutor.kt"):
         source = integration / name
         if not source.is_file() or source.stat().st_size == 0:
             raise SystemExit(f"Required integration source is missing or empty: {source}")
