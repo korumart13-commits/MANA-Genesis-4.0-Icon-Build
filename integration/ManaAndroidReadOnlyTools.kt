@@ -3,6 +3,7 @@ package com.mana.os.integration
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.app.NotificationManager
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Environment
@@ -83,7 +84,21 @@ object ManaAndroidReadOnlyTools {
             val batteryText = if (level in 0..100) "заряд $level%" else "заряд недоступен"
             ManaCognitiveToolResult(true, "Android ${Build.VERSION.RELEASE}: $batteryText, $storageResult.")
         }
-        return ManaReadOnlyToolRegistry(listOf(findApps, battery, storage, status))
+        val notificationStatus = ManaReadOnlyToolDefinition("device.read_notification_status") { _, control ->
+            if (control.isStopRequested()) return@ManaReadOnlyToolDefinition ManaCognitiveToolResult(false, "Запрос остановлен.")
+            val manager = app.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            if (manager == null) {
+                ManaCognitiveToolResult(false, "Статус уведомлений недоступен.")
+            } else {
+                val appNotifications = if (manager.areNotificationsEnabled()) "включены" else "выключены"
+                val dndAccess = if (manager.isNotificationPolicyAccessGranted) "предоставлен" else "не предоставлен"
+                ManaCognitiveToolResult(
+                    true,
+                    "Уведомления MANA: $appNotifications. Доступ MANA к управлению режимом «Не беспокоить»: $dndAccess. Содержимое уведомлений не читается."
+                )
+            }
+        }
+        return ManaReadOnlyToolRegistry(listOf(findApps, battery, storage, status, notificationStatus))
     }
 
     private fun formatBytes(bytes: Long): String {
