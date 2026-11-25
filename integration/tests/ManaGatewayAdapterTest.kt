@@ -31,6 +31,22 @@ class ManaGatewayAdapterTest {
     }
 
     @Test
+    fun malformedDeviceTokenIsRejectedBeforeNetwork() {
+        val transport = RecordingTransport()
+        val model = ManaGatewayReasoningModel(
+            ManaGatewayConfig("https://gateway.example/v1/mana/respond", "gateway.example"),
+            ManaGatewayCredentialProvider { "token\\r\\nInjected: yes" }, transport, StubCodec()
+        )
+        try {
+            model.decide(sampleContext(), ManaRuntimeControl.NEVER_STOP)
+            fail("Expected malformed token to fail closed.")
+        } catch (expected: IllegalArgumentException) {
+            assertTrue(expected.message!!.contains("authorization"))
+        }
+        assertFalse(transport.called)
+    }
+
+    @Test
     fun nonSuccessHttpStatusDoesNotReachModelDecoder() {
         val codec = StubCodec()
         val transport = RecordingTransport(ManaGatewayHttpResponse(503, "unavailable"))
