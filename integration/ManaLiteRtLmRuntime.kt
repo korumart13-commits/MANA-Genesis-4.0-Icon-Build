@@ -81,7 +81,10 @@ class ManaLiteRtLmRuntime(
             }
         }
         if (control.isStopRequested()) return stopped()
-        val answer = output.toString().trim()
+        val answer = output.toString()
+            .replace(Regex("(?is)<think>.*?</think>"), "")
+            .replace(Regex("(?is)<think>.*$"), "")
+            .trim()
         check(answer.isNotBlank()) { "Локальная модель не вернула ответ." }
         return ManaCognitiveDecision(
             summary = "Ответ создан локальной моделью LiteRT-LM без обращения к облаку.",
