@@ -96,7 +96,13 @@ export default {
         }, upstream.status === 429 ? 429 : 502);
       }
 
-      const outputText = typeof payload.output_text === "string" ? payload.output_text : "";
+      const outputItems = Array.isArray(payload.output) ? payload.output as Array<Record<string, unknown>> : [];
+      const outputText = outputItems
+        .filter(item => item.type === "message" && item.role === "assistant")
+        .flatMap(item => Array.isArray(item.content) ? item.content as Array<Record<string, unknown>> : [])
+        .filter(part => part.type === "output_text" && typeof part.text === "string")
+        .map(part => part.text as string)
+        .join("\\n");
       return json({
         service: "MANA Cloud",
         model: body.model || env.MANA_GPT_MODEL || "gpt-4.1-mini",
