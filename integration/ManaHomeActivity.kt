@@ -11,6 +11,9 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -26,6 +29,7 @@ import java.util.Locale
 class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
     private var textToSpeech: TextToSpeech? = null
     private var ttsReady = false
+    private var avatarWebView: WebView? = null
     private val prefs by lazy { getSharedPreferences("mana_setup", MODE_PRIVATE) }
     private lateinit var content: LinearLayout
     private lateinit var status: TextView
@@ -75,17 +79,24 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
         val avatarPanel = card()
         avatarPanel.orientation = LinearLayout.HORIZONTAL
         avatarPanel.gravity = Gravity.CENTER_VERTICAL
-        val avatar = TextView(this).apply {
-            text = "M"; textSize = 36f; typeface = Typeface.DEFAULT_BOLD; gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                intArrayOf(Color.rgb(19, 90, 153), Color.rgb(17, 35, 77))).apply { shape = GradientDrawable.OVAL }
+        val avatar = WebView(this).apply {
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = false
+            settings.allowFileAccess = true
+            settings.allowContentAccess = false
+            settings.allowFileAccessFromFileURLs = true
+            settings.allowUniversalAccessFromFileURLs = false
+            webViewClient = WebViewClient()
+            setBackgroundColor(Color.TRANSPARENT)
+            setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            loadUrl("file:///android_asset/mana-avatar/index.html")
         }
-        avatarPanel.addView(avatar, LinearLayout.LayoutParams(dp(76), dp(76)))
+        avatarWebView = avatar
+        avatarPanel.addView(avatar, LinearLayout.LayoutParams(dp(112), dp(142)))
         val intro = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(14), 0, 0, 0) }
         intro.addView(label("Привет. Я Мана.", 20f, primaryText, true))
         intro.addView(label("Твой единый ИИ-помощник и пространство телефона.", 13f, muted))
-        intro.addView(label("3D-аватарный движок подключается отдельным этапом — это пока не живая 3D-модель.", 11f, muted))
+        intro.addView(label("Оригинальный 3D-аватар MANA. Голос пока использует установленный русский движок Android.", 11f, muted))
         avatarPanel.addView(intro, LinearLayout.LayoutParams(0, -2, 1f))
         content.addView(avatarPanel, marginTop(20))
 
@@ -303,6 +314,11 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
             if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
                 ttsReady = false
             }
+            textToSpeech?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                override fun onStart(utteranceId: String?) { setAvatarSpeaking(true) }
+                override fun onDone(utteranceId: String?) { setAvatarSpeaking(false) }
+                override fun onError(utteranceId: String?) { setAvatarSpeaking(false) }
+            })
         }
     }
 
@@ -312,10 +328,21 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
         }
     }
 
+    private fun setAvatarSpeaking(speaking: Boolean) {
+        runOnUiThread {
+            avatarWebView?.evaluateJavascript(
+                "window.ManaAvatar && window.ManaAvatar.setSpeaking($speaking);", null
+            )
+        }
+    }
+
     override fun onDestroy() {
         gatewayChat.stop()
         textToSpeech?.stop()
         textToSpeech?.shutdown()
+        avatarWebView?.stopLoading()
+        avatarWebView?.destroy()
+        avatarWebView = null
         textToSpeech = null
         super.onDestroy()
     }
