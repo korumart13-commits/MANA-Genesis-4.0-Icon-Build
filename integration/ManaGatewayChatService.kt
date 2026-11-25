@@ -18,8 +18,16 @@ class ManaGatewayChatService(
 
     fun isConfigured(): Boolean = ManaGatewayDeploymentConfig.isConfigured()
 
+    private val localModelFile by lazy {
+        java.io.File(appContext.filesDir, "${ManaLiteRtLmRuntime.MODEL_DIRECTORY}/${ManaLiteRtLmRuntime.MODEL_FILE_NAME}")
+    }
+    @Volatile private var localRuntime: ManaLiteRtLmRuntime? = null
+
+    fun hasLocalModel(): Boolean = localModelFile.isFile && localModelFile.length() > 0L
+    fun canRespondLocally(): Boolean = hasLocalModel()
+
     fun send(message: String, callback: (answer: String?, error: String?, approvals: List<ManaApprovalRequest>) -> Unit): Boolean {
-        if (!isConfigured() || message.isBlank()) return false
+        if ((!isConfigured() && !hasLocalModel()) || message.isBlank()) return false
         stop()
         val signal = ManaCancellationSignal()
         activeSignal = signal
@@ -32,9 +40,21 @@ class ManaGatewayChatService(
                 val credentials = ManaAndroidGatewayCredentialStore(appContext)
                 // All reasoning flows through the MANA-owned engine. GPT is served by the
                 // MANA gateway; the OpenAI API key never ships in this Android application.
+                val gptProvider = if (ManaGatewayDeploymentConfig.isConfigured()) {
+                    ManaGatewayGptProvider(config, credentials)
+                } else null
+                val localProvider = if (hasLocalModel()) {
+                    val runtime = localRuntime ?: synchronized(this) {
+                        localRuntime ?: ManaLiteRtLmRuntime(appContext, localModelFile).also { candidate ->
+                            candidate.initialize()
+                            localRuntime = candidate
+                        }
+                    }
+                    ManaLocalModelProvider(runtime)
+                } else null
                 val model = ManaEngine(
-                    gpt = ManaGatewayGptProvider(config, credentials),
-                    local = null,
+                    gpt = gptProvider,
+                    local = localProvider,
                     policy = ManaEnginePolicy(preferGpt = true, allowFallback = true)
                 )
                 val runtime = ManaCognitiveRuntime(
