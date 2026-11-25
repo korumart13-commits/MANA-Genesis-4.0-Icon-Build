@@ -1,6 +1,8 @@
 package com.mana.os.integration
 
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Environment
@@ -9,12 +11,44 @@ import java.util.Locale
 
 /**
  * Android read-only diagnostics. Exposes coarse battery/storage facts only.
- * Installed-app inventory is intentionally not sent to the remote model because it can reveal
- * private habits; it remains unavailable until a local-only privacy design exists.
+ * Full installed-app inventory is never sent. A narrowly scoped search returns at most five
+ * matches for an explicit owner request, so MANA can identify a requested launch target.
  */
 object ManaAndroidReadOnlyTools {
     fun create(context: Context): ManaReadOnlyToolRegistry {
         val app = context.applicationContext
+        val findApps = ManaReadOnlyToolDefinition(
+            name = "apps.find_launchable",
+            argumentNames = setOf("query"),
+            requiredArguments = setOf("query")
+        ) { arguments, control ->
+            if (control.isStopRequested()) return@ManaReadOnlyToolDefinition ManaCognitiveToolResult(false, "Запрос остановлен.")
+            val query = arguments["query"]?.trim().orEmpty()
+            if (query.length !in 2..80) {
+                return@ManaReadOnlyToolDefinition ManaCognitiveToolResult(false, "Для поиска приложения укажи не менее двух символов.")
+            }
+            val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+            val matches = app.packageManager
+                .queryIntentActivities(launcherIntent, PackageManager.MATCH_DEFAULT_ONLY)
+                .asSequence()
+                .filter { !control.isStopRequested() }
+                .distinctBy { it.activityInfo.packageName }
+                .map { it to it.loadLabel(app.packageManager).toString() }
+                .filter { (_, label) -> label.contains(query, ignoreCase = true) }
+                .sortedBy { (_, label) -> label.lowercase(Locale.ROOT) }
+                .take(5)
+                .toList()
+            if (control.isStopRequested()) {
+                ManaCognitiveToolResult(false, "Запрос остановлен.")
+            } else if (matches.isEmpty()) {
+                ManaCognitiveToolResult(true, "Не нашла приложение с названием «$query».")
+            } else {
+                val result = matches.joinToString("; ") { (info, label) ->
+                    "$label (package_name=${info.activityInfo.packageName})"
+                }
+                ManaCognitiveToolResult(true, "Подходящие приложения (не более пяти): $result")
+            }
+        }
         val battery = ManaReadOnlyToolDefinition("device.read_battery") { _, control ->
             if (control.isStopRequested()) return@ManaReadOnlyToolDefinition ManaCognitiveToolResult(false, "Запрос остановлен.")
             val manager = app.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
@@ -49,7 +83,7 @@ object ManaAndroidReadOnlyTools {
             val batteryText = if (level in 0..100) "заряд $level%" else "заряд недоступен"
             ManaCognitiveToolResult(true, "Android ${Build.VERSION.RELEASE}: $batteryText, $storageResult.")
         }
-        return ManaReadOnlyToolRegistry(listOf(battery, storage, status))
+        return ManaReadOnlyToolRegistry(listOf(findApps, battery, storage, status))
     }
 
     private fun formatBytes(bytes: Long): String {
