@@ -354,7 +354,8 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
             val launchLabel = gatewayChat.previewApproval(request)
             val supportedLaunch = request.actionName == "apps.launch" && launchLabel != null
             val supportedSettingsPage = request.actionName == "settings.open_page" && launchLabel != null
-            val supportedAction = supportedLaunch || supportedSettingsPage
+            val supportedDnd = request.actionName == "device.set_dnd_filter" && launchLabel != null
+            val supportedAction = supportedLaunch || supportedSettingsPage || supportedDnd
             val details = buildString {
                 append(request.summary)
                 append("\n\nДействие: ").append(request.actionName)
@@ -365,6 +366,9 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
                 } else if (supportedSettingsPage) {
                     append("\n\nРаздел настроек Android: ").append(launchLabel)
                     append("\n\nПосле подтверждения откроется штатная страница Android. MANA не будет менять переключатели или параметры автоматически.")
+                } else if (supportedDnd) {
+                    append("\n\nРежим телефона: ").append(launchLabel)
+                    append("\n\nПосле подтверждения Android изменит режим «Не беспокоить». Режим останется включённым, пока ты не изменишь его вручную.")
                 } else {
                     append("\n\nПараметры:")
                     request.arguments.forEach { (key, value) ->
@@ -381,6 +385,7 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
                 .setPositiveButton(when {
                     supportedLaunch -> "Подтвердить запуск"
                     supportedSettingsPage -> "Открыть настройки"
+                    supportedDnd -> "Применить режим"
                     else -> "Закрыть без выполнения"
                 }) { _, _ ->
                     if (supportedAction) {
