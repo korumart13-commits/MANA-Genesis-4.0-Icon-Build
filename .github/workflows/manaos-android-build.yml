@@ -109,6 +109,45 @@ jobs:
           nl -ba "$FILE" | sed -n '45,70p'
           echo "----- end source excerpt -----"
 
+      - name: Inventory real source modules and package project for implementation
+        working-directory: ${{ steps.project.outputs.dir }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/source-audit"
+          {
+            echo "# ManaOS source inventory"
+            echo
+            echo "Commit: $GITHUB_SHA"
+            echo "Project: $PWD"
+            echo
+            echo "## Gradle modules"
+            grep -R --include='settings.gradle' --include='settings.gradle.kts' -nE 'include|project\(' . || true
+            echo
+            echo "## Source files"
+            find . -type f \( -name '*.kt' -o -name '*.java' -o -name '*.aidl' -o -name 'AndroidManifest.xml' -o -name '*.gradle' -o -name '*.gradle.kts' \) -not -path '*/build/*' | sort
+            echo
+            echo "## Main app manifest"
+            if [ -f app/src/main/AndroidManifest.xml ]; then
+              sed -n '1,260p' app/src/main/AndroidManifest.xml
+            fi
+            echo
+            echo "## Main app Kotlin sources"
+            find app/src/main -type f -name '*.kt' -not -path '*/build/*' -print -exec sed -n '1,260p' {} \;
+          } > "$GITHUB_WORKSPACE/source-audit/MANAOS_SOURCE_INVENTORY.md"
+          tar -czf "$GITHUB_WORKSPACE/source-audit/MANAOS_ANDROID_SOURCE.tar.gz" \
+            --exclude='*/build' --exclude='.gradle' .
+          test -s "$GITHUB_WORKSPACE/source-audit/MANAOS_SOURCE_INVENTORY.md"
+          test -s "$GITHUB_WORKSPACE/source-audit/MANAOS_ANDROID_SOURCE.tar.gz"
+
+      - name: Upload source audit package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ManaOS-source-audit
+          path: source-audit/*
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
 
