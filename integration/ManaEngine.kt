@@ -4,9 +4,8 @@ package com.mana.os.integration
  * MANA Engine — the central intelligence orchestrator of MANA Genesis 4.0.
  *
  * MANA owns the routing, context policy, memory/tool boundaries, provider lifecycle and fallback.
- * GPT is a hosted proprietary model reached through the MANA gateway; its weights are not copied
- * into the APK. The gateway keeps the OpenAI API key server-side. The phone stores only a revocable
- * MANA device credential using the existing Android Keystore-backed credential store.
+ * The on-device LiteRT-LM model is primary. An optional hosted provider is reached through the
+ * MANA gateway only as a secondary fallback; its API key remains server-side.
  *
  * The same engine can run on Android today and later be hosted by a MANA OS system service.
  */
