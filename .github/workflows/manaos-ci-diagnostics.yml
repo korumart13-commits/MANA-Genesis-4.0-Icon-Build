@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: manaos-ci-diagnostics-${{ github.ref }}
+  group: manaos-ci-diagnostics-v2-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
