@@ -64,16 +64,8 @@ class ManaGatewayChatService(
         Thread({
             try {
                 if (!hasLocalModel()) ensureLocalModel()
-                val config = ManaGatewayConfig(
-                    endpoint = ManaGatewayDeploymentConfig.ENDPOINT,
-                    expectedHost = ManaGatewayDeploymentConfig.EXPECTED_HOST
-                )
-                val credentials = ManaAndroidGatewayCredentialStore(appContext)
-                // The on-device model is tried first. The optional MANA gateway is secondary;
-                // provider secrets never ship in this Android application.
-                val gptProvider = if (ManaGatewayDeploymentConfig.isConfigured()) {
-                    ManaGatewayGptProvider(config, credentials)
-                } else null
+                // MANA is an independent local intelligence. No external model provider
+                // is called, used as fallback, or treated as part of its identity.
                 val localProvider = if (hasLocalModel()) {
                     val runtime = localRuntime ?: synchronized(this) {
                         localRuntime ?: ManaLiteRtLmRuntime(appContext, localModelFile).also { candidate ->
@@ -84,9 +76,8 @@ class ManaGatewayChatService(
                     ManaLocalModelProvider(runtime)
                 } else null
                 val model = ManaEngine(
-                    gpt = gptProvider,
                     local = localProvider,
-                    policy = ManaEnginePolicy(preferLocal = true, allowCloudFallback = true, allowFallback = true)
+                    policy = ManaEnginePolicy(localOnly = true)
                 )
                 val runtime = ManaCognitiveRuntime(
                     model = model,
@@ -106,7 +97,7 @@ class ManaGatewayChatService(
                 val messageText = if (signal.isStopRequested()) {
                     "Запрос остановлен."
                 } else {
-                    error.message?.take(300) ?: "Не удалось связаться со шлюзом MANA."
+                    error.message?.take(300) ?: "Не удалось запустить локальное ядро MANA."
                 }
                 callback(null, messageText, emptyList())
             } finally {
