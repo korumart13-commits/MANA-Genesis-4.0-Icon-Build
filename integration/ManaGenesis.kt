@@ -1,14 +1,11 @@
 package com.mana.os.integration
 
 /**
- * Mana Genesis central bootstrap.
+ * Mana Genesis central bootstrap and self-development policy.
  *
- * This is the single composition root for ManaOS feature modules.
- * It does not grant Android permissions, replace firmware, install code,
- * or execute generated updates. Platform modules must be supplied as
- * ModuleRuntime adapters and request permissions through Android APIs.
- *
- * Pure Kotlin/JVM: no Android or third-party dependency is required here.
+ * This file defines orchestration contracts. Real Android modules must provide
+ * adapters. It never grants permissions, executes content from the Internet,
+ * modifies Android firmware, bypasses platform security, or installs an update.
  */
 object ManaGenesis {
     const val VERSION = "4.0.0"
@@ -25,74 +22,240 @@ object ManaGenesis {
         val permissions: Set<Permission> = emptySet()
     )
 
-    data class ModuleState(
-        val id: String,
-        val status: Status,
-        val detail: String = ""
-    )
+    data class ModuleState(val id: String, val status: Status, val detail: String = "")
 
-    /** Implement this interface in each real Android feature module. */
     interface ModuleRuntime {
         val id: String
         fun start(context: RuntimeContext)
         fun stop()
     }
 
-    /** The Android app supplies a context implementation that checks permissions. */
     interface RuntimeContext {
         fun hasPermission(permission: Permission): Boolean
         fun requestPermission(permission: Permission, reason: String)
         fun report(message: String)
     }
 
-    /**
-     * A development idea is a proposal, never executable code.
-     * A user must approve it before a trusted build pipeline can implement it.
-     */
+    // ---------- Self-development: collect -> analyze -> implement -> test -> release ----------
+
+    /** Ideas may originate anywhere. The source is metadata, never trusted executable input. */
+    enum class IdeaSource {
+        OWNER, INTERNET, GAME, APP, BUG_REPORT, SECURITY_ALERT, LEARNED_KNOWLEDGE, DEVICE_DIAGNOSTIC, OTHER
+    }
+
+    enum class ImprovementTarget { MODULE, MANA_OS_LAYER, MANA_SOURCE_CODE, PERFORMANCE, ACCESSIBILITY, SECURITY, OTHER }
+    enum class ChangeScope { MINOR_PATCH, FEATURE_ADDITION, FULL_SYSTEM_UPDATE }
+    enum class ChangeRisk { LOW, ELEVATED, SECURITY_CRITICAL, SYSTEM_WIDE }
+    enum class ProposalStatus { COLLECTED, ANALYZED, READY_FOR_TESTS, TESTING, APPROVAL_REQUIRED, APPLIED, REJECTED, FAILED }
+
+    data class IdeaRecord(
+        val id: String,
+        val source: IdeaSource,
+        val summary: String,
+        val evidence: String = "",
+        val sourceReference: String? = null
+    )
+
     data class DevelopmentProposal(
         val id: String,
         val title: String,
         val rationale: String,
         val affectedModules: Set<String>,
+        val targets: Set<ImprovementTarget>,
+        val scope: ChangeScope,
+        val risk: ChangeRisk,
         val acceptanceCriteria: List<String>,
-        val requiresUserApproval: Boolean = true
+        val basedOnIdeaIds: Set<String>,
+        val requiresUserApproval: Boolean,
+        val status: ProposalStatus = ProposalStatus.COLLECTED
+    )
+
+    data class OwnerDevelopmentPolicy(
+        /** Owner can switch self-development off at any time. */
+        val selfDevelopmentEnabled: Boolean = true,
+        /** If false, Mana collects and analyzes ideas but does not apply minor patches. */
+        val autonomousMinorPatchesEnabled: Boolean = true
+    )
+
+    data class ChangeResult(
+        val applied: Boolean,
+        val testsPassed: Boolean,
+        val rollbackAvailable: Boolean,
+        val detail: String
     )
 
     interface DevelopmentStore {
-        fun save(proposal: DevelopmentProposal)
-        fun pending(): List<DevelopmentProposal>
+        fun saveIdea(idea: IdeaRecord)
+        fun ideas(): List<IdeaRecord>
+        fun saveProposal(proposal: DevelopmentProposal)
+        fun proposals(): List<DevelopmentProposal>
+        fun updateProposal(proposal: DevelopmentProposal)
     }
+
+    /** Analysis is performed by a replaceable local/remote intelligence adapter. */
+    interface DevelopmentAnalyzer {
+        fun analyze(ideas: List<IdeaRecord>, knownModules: List<ModuleSpec>): List<DevelopmentProposal>
+    }
+
+    /**
+     * Implementations must operate on an isolated project/worktree.
+     * Minor changes must not touch firmware, boot chain, security controls,
+     * Android permissions, private user data, or execute untrusted payloads.
+     */
+    interface DevelopmentExecutor {
+        fun applyMinorPatch(proposal: DevelopmentProposal): ChangeResult
+        fun prepareFullSystemUpdate(proposal: DevelopmentProposal): ChangeResult
+        fun applyApprovedFullSystemUpdate(proposal: DevelopmentProposal): ChangeResult
+    }
+
+    data class DevelopmentReport(
+        val collectedIdeas: Int,
+        val proposals: Int,
+        val appliedMinorPatches: Int,
+        val awaitingOwnerApproval: Int,
+        val message: String
+    )
+
+    class SelfDevelopment(
+        private val store: DevelopmentStore,
+        private val analyzer: DevelopmentAnalyzer,
+        private val executor: DevelopmentExecutor,
+        initialPolicy: OwnerDevelopmentPolicy = OwnerDevelopmentPolicy()
+    ) {
+        @Volatile private var policy = initialPolicy
+        private val approvedFullUpdates = mutableSetOf<String>()
+
+        @Synchronized
+        fun setPolicy(newPolicy: OwnerDevelopmentPolicy) {
+            policy = newPolicy
+        }
+
+        fun policy(): OwnerDevelopmentPolicy = policy
+
+        /** Accepts reports/ideas from any source, but stores them only as inert text and metadata. */
+        fun collectIdea(idea: IdeaRecord) {
+            require(idea.id.isNotBlank() && idea.summary.isNotBlank())
+            require(idea.summary.length <= 20_000 && idea.evidence.length <= 50_000)
+            store.saveIdea(idea)
+        }
+
+        /**
+         * Mana chooses what to improve: individual modules, its own application/system layer,
+         * source code, performance, accessibility or security. Analysis does not change code.
+         */
+        fun analyzeCollectedIdeas(): List<DevelopmentProposal> {
+            if (!policy.selfDevelopmentEnabled) return emptyList()
+            val generated = analyzer.analyze(store.ideas(), moduleCatalog)
+            return generated.map { proposal ->
+                validateProposal(proposal)
+                val approvalRequired = proposal.scope == ChangeScope.FULL_SYSTEM_UPDATE ||
+                    proposal.risk != ChangeRisk.LOW
+                val normalized = proposal.copy(
+                    requiresUserApproval = approvalRequired,
+                    status = if (approvalRequired) ProposalStatus.APPROVAL_REQUIRED else ProposalStatus.READY_FOR_TESTS
+                )
+                store.saveProposal(normalized)
+                normalized
+            }
+        }
+
+        /**
+         * Low-risk, reversible application-layer fixes may be applied autonomously
+         * when the owner has enabled that mode. They still require passing tests
+         * and a rollback point. This method never applies full updates.
+         */
+        @Synchronized
+        fun applyEligibleMinorPatch(proposalId: String): DevelopmentProposal {
+            val proposal = store.proposals().firstOrNull { it.id == proposalId }
+                ?: error("Unknown development proposal.")
+            check(policy.selfDevelopmentEnabled) { "Self-development is disabled by the owner." }
+            check(policy.autonomousMinorPatchesEnabled) { "Autonomous minor patches are disabled by the owner." }
+            check(proposal.scope == ChangeScope.MINOR_PATCH && proposal.risk == ChangeRisk.LOW) {
+                "Only low-risk minor patches qualify for autonomous application."
+            }
+            check(!proposal.requiresUserApproval)
+            check(proposal.acceptanceCriteria.isNotEmpty())
+            val testing = proposal.copy(status = ProposalStatus.TESTING)
+            store.updateProposal(testing)
+            val result = executor.applyMinorPatch(testing)
+            val final = when {
+                result.applied && result.testsPassed && result.rollbackAvailable ->
+                    testing.copy(status = ProposalStatus.APPLIED, rationale = testing.rationale + " Result: " + result.detail)
+                else -> testing.copy(status = ProposalStatus.FAILED, rationale = testing.rationale + " Rejected/rolled back: " + result.detail)
+            }
+            store.updateProposal(final)
+            return final
+        }
+
+        /** Prepare, but do not install, a full update. Owner approval is still mandatory. */
+        fun prepareFullUpdate(proposalId: String): ChangeResult {
+            val proposal = requireProposal(proposalId)
+            check(proposal.scope == ChangeScope.FULL_SYSTEM_UPDATE)
+            check(policy.selfDevelopmentEnabled)
+            return executor.prepareFullSystemUpdate(proposal)
+        }
+
+        /** Calling this method represents the owner's explicit approval action. */
+        @Synchronized
+        fun approveFullUpdate(proposalId: String) {
+            val proposal = requireProposal(proposalId)
+            check(proposal.scope == ChangeScope.FULL_SYSTEM_UPDATE)
+            check(policy.selfDevelopmentEnabled) { "Self-development is disabled." }
+            approvedFullUpdates += proposalId
+        }
+
+        /** Full update can run only after the separate owner approval step. */
+        @Synchronized
+        fun applyApprovedFullUpdate(proposalId: String): ChangeResult {
+            val proposal = requireProposal(proposalId)
+            check(proposal.scope == ChangeScope.FULL_SYSTEM_UPDATE)
+            check(approvedFullUpdates.remove(proposalId)) { "Explicit owner approval is required." }
+            check(policy.selfDevelopmentEnabled)
+            return executor.applyApprovedFullSystemUpdate(proposal)
+        }
+
+        private fun requireProposal(id: String): DevelopmentProposal =
+            store.proposals().firstOrNull { it.id == id } ?: error("Unknown development proposal.")
+
+        private fun validateProposal(proposal: DevelopmentProposal) {
+            require(proposal.id.isNotBlank() && proposal.title.isNotBlank())
+            require(proposal.affectedModules.all { module -> moduleCatalog.any { it.id == module } })
+            require(proposal.acceptanceCriteria.isNotEmpty()) { "Every change needs testable acceptance criteria." }
+            require(proposal.basedOnIdeaIds.isNotEmpty()) { "Every proposal must link to at least one collected idea." }
+        }
+    }
+
+    // ---------- Module composition root ----------
 
     private val specs = linkedMapOf<String, ModuleSpec>()
     private val runtimes = linkedMapOf<String, ModuleRuntime>()
     private val states = linkedMapOf<String, ModuleState>()
     private var started = false
 
-    /** All planned Mana capabilities are catalogued here in one place. */
     val moduleCatalog: List<ModuleSpec> = listOf(
         ModuleSpec("brain", "MANA Brain", "Central assistant orchestration and dialogue."),
         ModuleSpec("memory", "Local Memory", "User-controlled local memory and offline knowledge."),
         ModuleSpec("learning", "Adaptive Intelligence", "Source-checked research and knowledge-base updates.", setOf("brain", "memory"), setOf(Permission.NETWORK)),
         ModuleSpec("launcher", "Mana Launcher", "Custom Android-first home screen."),
-        ModuleSpec("system_ui", "Mana System UI", "Optional user-selected system-facing surfaces; Android-owned screens remain protected."),
+        ModuleSpec("system_ui", "Mana System UI", "User-selected system-facing surfaces; Android-owned screens remain protected."),
         ModuleSpec("settings", "Mana Settings", "Unified settings and permission explanations."),
         ModuleSpec("control_center", "Mana Control Center", "Shortcuts and user-approved device controls."),
         ModuleSpec("avatar", "Avatar Engine", "Original 3D Mana avatar and animation."),
         ModuleSpec("voice", "Voice", "Speech input and output.", setOf("brain"), setOf(Permission.MICROPHONE)),
-        ModuleSpec("yandex", "Yandex Integration", "Official Yandex APIs and user-authorized account links.", setOf("brain"), setOf(Permission.NETWORK)),
-        ModuleSpec("vk", "VK Integration", "Official VK APIs and user-authorized account links.", setOf("brain"), setOf(Permission.NETWORK)),
+        ModuleSpec("yandex", "Yandex Integration", "Official Yandex APIs and user-authorized links.", setOf("brain"), setOf(Permission.NETWORK)),
+        ModuleSpec("vk", "VK Integration", "Official VK APIs and user-authorized links.", setOf("brain"), setOf(Permission.NETWORK)),
         ModuleSpec("diary", "Mana Diary", "Private notes and reminders."),
         ModuleSpec("life_manager", "Life Manager", "Tasks, schedules and personal organization.", setOf("memory")),
-        ModuleSpec("receptionist", "Smart Receptionist", "Call assistance only where Android and carrier APIs allow.", setOf("brain"), setOf(Permission.PHONE, Permission.CONTACTS, Permission.NOTIFICATIONS)),
+        ModuleSpec("receptionist", "Smart Receptionist", "Call assistance where Android and carrier APIs allow.", setOf("brain"), setOf(Permission.PHONE, Permission.CONTACTS, Permission.NOTIFICATIONS)),
         ModuleSpec("contact_intelligence", "Contact Intelligence", "User-approved contact context.", setOf("memory"), setOf(Permission.CONTACTS)),
         ModuleSpec("game_intelligence", "Game Intelligence", "Game companion and permitted integrations.", setOf("brain")),
-        ModuleSpec("mana_shield", "Mana Shield", "Defensive app/device checks without stealth or privilege escalation."),
+        ModuleSpec("mana_shield", "Mana Shield", "Defensive checks without stealth or privilege escalation."),
         ModuleSpec("developer", "Mana Developer", "Project diagnostics, tests and build reports."),
         ModuleSpec("local_server", "Local Server", "Opt-in LAN services, disabled by default.", setOf("settings"), setOf(Permission.NETWORK)),
         ModuleSpec("wearables", "Connected Devices", "Optional watch, earbuds and car integrations.", setOf("settings"), setOf(Permission.BLUETOOTH)),
         ModuleSpec("updates", "Update Manager", "Signed, verifiable app updates with rollback."),
-        ModuleSpec("recovery", "Recovery Planner", "Recovery guidance and compatibility reports; no firmware flashing from this APK."),
-        ModuleSpec("self_development", "Self-Development", "Collect ideas, prepare plans, tests and reviewable change proposals.", setOf("developer", "updates"))
+        ModuleSpec("recovery", "Recovery Planner", "Recovery guidance; no firmware flashing from this APK."),
+        ModuleSpec("self_development", "Self-Development", "Collect ideas, analyze, implement safe minor fixes and prepare owner-approved full updates.", setOf("developer", "updates"))
     )
 
     init {
@@ -102,7 +265,6 @@ object ManaGenesis {
         }
     }
 
-    /** Register real module implementations before calling start(). */
     @Synchronized
     fun register(runtime: ModuleRuntime) {
         require(!started) { "Register modules before ManaGenesis.start()." }
@@ -111,10 +273,6 @@ object ManaGenesis {
         runtimes[runtime.id] = runtime
     }
 
-    /**
-     * Starts available modules in dependency order.
-     * Missing adapters remain UNAVAILABLE; they are not represented as working.
-     */
     @Synchronized
     fun start(context: RuntimeContext): List<ModuleState> {
         if (started) return snapshot()
@@ -131,7 +289,6 @@ object ManaGenesis {
             }
             spec.dependencies.forEach(::activate)
             visiting.remove(id)
-
             val runtime = runtimes[id]
             if (runtime == null) {
                 states[id] = ModuleState(id, Status.UNAVAILABLE, "Implementation adapter has not been connected yet.")
@@ -176,21 +333,5 @@ object ManaGenesis {
     @Synchronized
     fun snapshot(): List<ModuleState> = states.values.toList()
 
-    /** Save a self-development idea as a reviewable proposal; never execute it. */
-    fun submitDevelopmentIdea(
-        store: DevelopmentStore,
-        proposal: DevelopmentProposal
-    ) {
-        require(proposal.id.isNotBlank() && proposal.title.isNotBlank())
-        require(proposal.affectedModules.all(specs::containsKey)) {
-            "Proposal references an unknown ManaOS module."
-        }
-        require(proposal.acceptanceCriteria.isNotEmpty()) {
-            "A proposal must include testable acceptance criteria."
-        }
-        store.save(proposal.copy(requiresUserApproval = true))
-    }
-
-    /** Explicitly exposes the catalog without claiming unimplemented features are active. */
     fun moduleStatus(id: String): ModuleState? = synchronized(this) { states[id] }
 }
