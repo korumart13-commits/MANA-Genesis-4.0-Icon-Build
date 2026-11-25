@@ -78,6 +78,8 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
             text = "GENESIS 4.0"; textSize = 11f; letterSpacing = .12f; setTextColor(muted)
         })
         content.addView(top)
+        content.addView(label("ГЛАВНЫЙ ЭКРАН · MANA HOME", 11f, muted, true), marginTop(18))
+        addLauncherGrid()
 
         val avatarPanel = card()
         avatarPanel.orientation = LinearLayout.HORIZONTAL
@@ -537,6 +539,58 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
                 .show()
         }
         showAt(0)
+    }
+
+    /** Native app grid for the MANA HOME surface; launches apps through Android's package manager. */
+    private fun addLauncherGrid() {
+        val pm = packageManager
+        val apps = pm.queryIntentActivities(
+            Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER),
+            PackageManager.MATCH_DEFAULT_ONLY
+        ).distinctBy { it.activityInfo.packageName }
+            .sortedBy { it.loadLabel(pm).toString().lowercase() }
+            .take(12)
+        val grid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        apps.chunked(4).forEach { group ->
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+            group.forEach { info ->
+                val tile = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER
+                    setPadding(dp(5), dp(10), dp(5), dp(10))
+                    isClickable = true
+                    isFocusable = true
+                    background = rounded(Color.rgb(10, 30, 56), 16)
+                    setOnClickListener {
+                        packageManager.getLaunchIntentForPackage(info.activityInfo.packageName)?.let { launch ->
+                            runCatching { startActivity(launch) }.onFailure { toast("Не удалось открыть приложение.") }
+                        }
+                    }
+                }
+                val icon = ImageView(this).apply {
+                    setImageDrawable(info.loadIcon(pm))
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                }
+                tile.addView(icon, LinearLayout.LayoutParams(dp(42), dp(42)))
+                tile.addView(TextView(this).apply {
+                    text = info.loadLabel(pm).toString()
+                    textSize = 10f
+                    maxLines = 2
+                    gravity = Gravity.CENTER
+                    setTextColor(primaryText)
+                }, LinearLayout.LayoutParams(-1, dp(34)))
+                row.addView(tile, LinearLayout.LayoutParams(0, dp(92), 1f).apply {
+                    setMargins(dp(3), dp(3), dp(3), dp(3))
+                })
+            }
+            repeat(4 - group.size) {
+                row.addView(View(this), LinearLayout.LayoutParams(0, dp(92), 1f))
+            }
+            grid.addView(row)
+        }
+        if (apps.isEmpty()) grid.addView(label("Приложения появятся здесь после установки.", 12f, muted))
+        content.addView(grid, marginTop(8))
+        content.addView(actionButton("Все приложения") { showInstalledApps() }, marginTop(6))
     }
 
     private fun showInstalledApps() {
