@@ -82,11 +82,15 @@ jobs:
           echo "dir=$project_dir" >> "$GITHUB_OUTPUT"
           echo "Using Android project: $project_dir"
 
+      - name: Install Blender
+        uses: bradyajohnston/setup-blender@v5
+        with:
+          version: "4.5"
+
       - name: Generate and bundle original MANA 3D avatar
         shell: bash
         run: |
           set -euo pipefail
-          sudo apt-get install -y blender
           mkdir -p "$GITHUB_WORKSPACE/avatar-build" "$GITHUB_WORKSPACE/avatar-renderer/examples/jsm/loaders" "$GITHUB_WORKSPACE/avatar-renderer/examples/jsm/utils"
           blender --background --python "$GITHUB_WORKSPACE/tools/build_mana_avatar.py" -- --output "$GITHUB_WORKSPACE/avatar-build/mana_avatar.glb"
           curl --fail --location --retry 3 "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js" --output "$GITHUB_WORKSPACE/avatar-renderer/three.module.js"
