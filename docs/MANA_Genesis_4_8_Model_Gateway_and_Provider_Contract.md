@@ -152,3 +152,14 @@ The next notification-related increment remains privacy-preserving:
 - `settings.open_page` accepts two additional fixed destinations: `notifications` opens Android's notification settings, and `do_not_disturb` opens Android's notification-policy access screen.
 - Opening either page requires the same exact-action, one-time owner confirmation as other settings navigation. Android still requires the owner to grant any special access manually.
 - MANA does not enable notification access, change Do Not Disturb, silence calls, or read notification content in this increment.
+
+
+## Owner-approved Do Not Disturb quick mode
+
+A narrowly scoped `device.set_dnd_filter` action is available only after the owner has explicitly confirmed the exact filter and Android has already granted MANA notification-policy access.
+
+Allowed values are:
+- `priority`: Android priority-only interruptions.
+- `all`: restore normal interruptions and turn off Do Not Disturb.
+
+The executor rejects every other value and extra argument, checks Android policy access before consuming the one-time approval token, and applies the filter only after exact-token consumption. The selected filter remains active until the owner changes it; this action does not schedule an automatic end time. If access is missing, nothing changes and the owner must first open the Do Not Disturb access page and grant it manually. The owner dialog states the persistent effect before confirmation.
