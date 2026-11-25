@@ -2,7 +2,7 @@ name: ManaOS Android APK Build
 
 on:
   push:
-    branches: [main]
+    branches: [main, mana-foundation-audit]
     paths:
       - ".github/workflows/manaos-android-build.yml"
       - "docs/**"
