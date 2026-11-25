@@ -1,13 +1,8 @@
 package com.mana.os.integration
 
 /**
- * MANA System Kernel — the composition root for the MANA-first operating environment.
- *
- * The AI Engine is registered as the "brain" module and is the primary reasoning dependency
- * for voice, assistant, launcher and system-facing modules. Android still owns the actual
- * Linux kernel, HALs, permissions and boot chain in the current app-layer implementation.
- * A future AOSP port can host this same composition root as a privileged system service only
- * after device-specific platform integration and signing are completed.
+ * MANA System Kernel — composition root for the MANA-first operating environment.
+ * This is currently an application-layer coordinator, not a replacement Linux kernel.
  */
 class ManaSystemKernel(
     private val engine: ManaCancellableReasoningModel,
@@ -20,24 +15,30 @@ class ManaSystemKernel(
     private val approvalBroker: ManaOwnerApprovalBroker? = null
 ) {
     @Volatile private var started = false
+    @Volatile private var modulesRegistered = false
 
     /**
-     * Registers the MANA Engine as the central brain before dependent modules are started.
-     * Additional real module adapters are supplied by the Android host.
+     * Registers MANA Engine as the central brain, then starts available platform adapters.
+     * Additional adapters are registered on first start; after stop, the same registry can restart.
      */
     @Synchronized
     fun start(platformModules: List<ManaGenesis.ModuleRuntime> = emptyList()): List<ManaGenesis.ModuleState> {
         check(!started) { "MANA System Kernel is already started." }
-        ManaGenesis.register(object : ManaGenesis.ModuleRuntime {
-            override val id: String = "brain"
-            override fun start(context: ManaGenesis.RuntimeContext) {
-                context.report("MANA Engine is registered as the central reasoning core.")
+        if (!modulesRegistered) {
+            ManaGenesis.register(object : ManaGenesis.ModuleRuntime {
+                override val id: String = "brain"
+                override fun start(context: ManaGenesis.RuntimeContext) {
+                    context.report("MANA Engine is registered as the central reasoning core.")
+                }
+                override fun stop() = Unit
+            })
+            platformModules.forEach { module ->
+                require(module.id != "brain") { "The brain module is reserved for MANA Engine." }
+                ManaGenesis.register(module)
             }
-            override fun stop() = Unit
-        })
-        platformModules.forEach { module ->
-            require(module.id != "brain") { "The brain module is reserved for MANA Engine." }
-            genesis.register(module)
+            modulesRegistered = true
+        } else {
+            require(platformModules.isEmpty()) { "Platform modules are registered only on first start." }
         }
         val states = ManaGenesis.start(hostContext)
         started = true
@@ -70,5 +71,5 @@ class ManaSystemKernel(
         return ManaGenesis.stop()
     }
 
-    fun moduleStates(): List<ManaGenesis.ModuleState> = genesis.snapshot()
+    fun moduleStates(): List<ManaGenesis.ModuleState> = ManaGenesis.snapshot()
 }
