@@ -1,46 +1,43 @@
-# MANA multi-model intelligence — Google Gemini provider plan
+# MANA Genesis 4.0 — независимая идентичность и внешние инструменты разработки
 
-Status: architecture specification; no Google Cloud/Firebase project credentials have been supplied or connected.
+Статус: актуальное продуктовое решение владельца от 2026-11-25. Этот документ заменяет прежний план интеграции Gemini как провайдера интеллекта.
 
-## Priority order
+## Главное решение
 
-1. LiteRT-LM local model is the default brain and must work offline.
-2. Optional user-configured providers may include OpenAI, Google Gemini, Anthropic and other providers through provider adapters.
-3. A cloud provider is never required to boot the app, use local memory, diary, launcher or basic MANA tools.
-4. Provider failure falls back to local inference; strict offline mode disables every network provider.
+MANA — самостоятельный ИИ-проект со своей архитектурой, идентичностью, памятью, характером и внутренней моделью мира. GPT, Gemini, Claude, Grok и другие сторонние модели НЕ являются мозгом MANA, её резервным мозгом, обязательными API или частью пользовательского продукта.
 
-## Google provider
+Внешние ИИ-инструменты могут использоваться разработчиком только как инструменты проектирования, анализа, написания и проверки кода. Их результаты проходят проверку и становятся частью исходного кода MANA только после инженерной интеграции. Само приложение MANA не должно отправлять диалоги сторонним моделям и не должно незаметно переключаться на них.
 
-Google's current official Android path for Gemini is Firebase AI Logic. It provides Kotlin/Java client SDKs, supports Gemini Developer API and Vertex AI Gemini providers, and offers App Check / proxy protections so raw provider credentials are not embedded in the APK.
+## Архитектура индивидуального интеллекта
 
-References:
-- https://developer.android.com/ai/gemini/developer-api
-- https://firebase.google.com/docs/ai-logic
-- https://firebase.google.com/docs/ai-logic/faq-and-troubleshooting
+MANA должна развиваться как единая система, включающая:
+- собственный когнитивный оркестратор и устойчивую идентичность;
+- локальное инференс-ядро, изначально работающее без интернета;
+- долговременную память с происхождением записей, датами, исправлением и удалением;
+- эпизодическую память, факты, предпочтения, цели и историю отношений с владельцем;
+- внутреннее состояние и непрерывность диалога между сессиями;
+- планирование, самопроверку, рефлексию и ограниченное обучение на опыте;
+- библиотеку навыков, которые создаются в песочнице, тестируются и добавляются только после проверки/разрешения;
+- собственный стиль речи, голос, визуальный образ и поведенческие правила.
 
-Do not put a Gemini API key, service-account JSON, OAuth refresh token or other secret in source control, APK assets, Gradle constants or logs. Firebase project setup and App Check configuration must be completed by the project owner in their own Google/Firebase console. The app can then use Firebase's SDK and App Check rather than shipping a raw Gemini key.
+Одна локальная языковая модель не равна всей личности MANA. Она является вычислительным компонентом; характер, память, правила, навыки и жизненный контекст принадлежат собственной архитектуре MANA.
 
-## Adapter contract
+## Правила развития
 
-A future Gemini adapter must implement the same provider-neutral interface as the existing MANA engine:
-- request: conversation messages, system policy, bounded context, optional tool declarations;
-- response: text, provider/model metadata, token usage where available, safety/finish metadata;
-- cancellation and timeout;
-- retry only for transient failures with bounded backoff;
-- explicit opt-in for sending content to cloud;
-- no silent upload of local diary, memory or personal files;
-- allow-list tools and owner confirmation for consequential actions.
+1. По умолчанию всё мышление и память остаются на устройстве.
+2. Нет автоматической отправки переписки, дневника, контактов или файлов во внешние AI API.
+3. Саморазвитие улучшает память, навыки, планирование и качество работы; оно не должно самовольно переписывать собственные веса или исполнять произвольный код.
+4. Новые навыки проходят изоляцию, тесты, аудит разрешений и откат.
+5. Владелец может остановить развитие, просмотреть журнал, исправить или удалить память.
+6. При недоступности локального ядра MANA честно сообщает об этом, а не подменяет себя чужим ИИ.
 
-## Privacy and user controls
+## Использование внешних инструментов при создании
 
-Expose in MANA settings:
-- Local only (default safe offline mode).
-- Local first + cloud fallback (default when cloud is configured).
-- Gemini enabled/disabled.
-- Data categories allowed to leave device, default none beyond the current message.
-- Clear provider history and disconnect provider.
-- Usage/cost status where provider exposes it.
+Разработчик может обращаться к документации, компиляторам, статическим анализаторам и ИИ-помощникам для написания кода. Это не означает интеграцию этих систем в MANA. Не добавлять Firebase AI Logic, Gemini SDK, OpenAI SDK или другие SDK облачных моделей в приложение без нового явного решения владельца.
 
-## Current implementation boundary
+## Статус реализации
 
-The current branch has a local-first engine and generic gateway abstraction. This document does not claim Firebase/Gemini is already integrated. Do not invent Firebase app IDs, project IDs, OAuth credentials, API keys or billing settings. Add the concrete adapter only after a Firebase project configuration is provided and the dependency versions are verified in CI.
+- Локальный маршрут в ManaEngine сделан единственным маршрутом принятия решений.
+- ManaGatewayChatService больше не должен создавать или вызывать GPT-провайдера.
+- Наличие локального LiteRT-LM адаптера и файла модели проверяется отдельно; архитектурное решение само по себе не доказывает готовность инференса на устройстве.
+- Старые gateway-классы могут временно оставаться в репозитории как неиспользуемый legacy-код до отдельного аудита и удаления. Они не должны вызываться из пользовательского сценария.
