@@ -103,10 +103,12 @@ jobs:
 
           import_anchor = "import com.mana.os.cloud.ManaCloudClient\n"
           import_line = "import com.mana.os.integration.AndroidSelfDevelopment\n"
-          if import_line not in source:
+          genesis_import = "import com.mana.os.integration.ManaGenesis\n"
+          if import_line not in source or genesis_import not in source:
               if import_anchor not in source:
                   raise SystemExit("MainActivity import anchor not found; refusing unsafe patch.")
-              source = source.replace(import_anchor, import_anchor + import_line, 1)
+              additions = ("" if import_line in source else import_line) + ("" if genesis_import in source else genesis_import)
+              source = source.replace(import_anchor, import_anchor + additions, 1)
 
           button_anchor = '        addButton("Настроить MANA Cloud") { configureCloud() }\n'
           button_line = '        addButton("Саморазвитие MANA") { showSelfDevelopment() }\n'
