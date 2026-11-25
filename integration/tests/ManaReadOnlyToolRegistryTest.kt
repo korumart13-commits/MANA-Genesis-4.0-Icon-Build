@@ -53,6 +53,17 @@ class ManaReadOnlyToolRegistryTest {
     }
 
     @Test
+    fun notificationStatusIsAnExplicitReadOnlyCapability() {
+        val registry = ManaReadOnlyToolRegistry(listOf(
+            ManaReadOnlyToolDefinition("device.read_notification_status") { _, _ ->
+                ManaCognitiveToolResult(true, "Статус доступен; содержимое уведомлений не читается.")
+            }
+        ))
+        assertTrue(registry.availableTools().contains("device.read_notification_status"))
+        assertTrue(registry.execute(ManaCognitiveAction("device.read_notification_status")).success)
+    }
+
+    @Test
     fun controlCharactersAndOversizedArgumentsAreRejected() {
         var calls = 0
         val registry = ManaReadOnlyToolRegistry(listOf(
