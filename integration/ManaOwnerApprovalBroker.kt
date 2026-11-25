@@ -42,6 +42,7 @@ class ManaOwnerApprovalBroker(
             requestId = id,
             actionName = action.name,
             summary = summary,
+            arguments = action.arguments.toSortedMap(),
             expiresAtMillis = createdAt + approvalTtlMillis
         )
         pending[id] = PendingApproval(request, fingerprint(action))
@@ -167,6 +168,8 @@ data class ManaApprovalRequest(
     val requestId: String,
     val actionName: String,
     val summary: String,
+    /** Exact bounded arguments for the owner to inspect before confirming; never copied to audit. */
+    val arguments: Map<String, String>,
     val expiresAtMillis: Long
 )
 
