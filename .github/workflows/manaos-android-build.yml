@@ -291,6 +291,30 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Draft optional AI code patch (review only)
+        shell: bash
+        env:
+          PROJECT_DIR: ${{ steps.project.outputs.dir }}
+          MANA_AI_API_KEY: ${{ secrets.MANA_AI_API_KEY }}
+          MANA_AI_MODEL: ${{ vars.MANA_AI_MODEL }}
+          MANA_AI_API_URL: ${{ vars.MANA_AI_API_URL }}
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/tools/mana_ai_code_author.py" \
+            --report "$GITHUB_WORKSPACE/code-intelligence/MANA_CODE_INTELLIGENCE.json" \
+            --source "$PROJECT_DIR" \
+            --out "$GITHUB_WORKSPACE/ai-code-author"
+          test -s "$GITHUB_WORKSPACE/ai-code-author/MANA_AI_PATCH_REQUEST.md"
+          test -s "$GITHUB_WORKSPACE/ai-code-author/MANA_AI_AUTHOR_REPORT.md"
+
+      - name: Upload MANA AI Code Author proposal
+        uses: actions/upload-artifact@v4
+        with:
+          name: ManaOS-ai-code-author
+          path: ai-code-author/*
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
 
