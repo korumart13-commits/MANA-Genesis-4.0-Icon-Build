@@ -1,6 +1,7 @@
 package com.mana.os.integration
 
 import android.content.Context
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Connects the configured gateway model to the bounded MANA cognitive loop.
@@ -22,6 +23,7 @@ class ManaGatewayChatService(
         java.io.File(appContext.filesDir, "${ManaLiteRtLmRuntime.MODEL_DIRECTORY}/${ManaLiteRtLmRuntime.MODEL_FILE_NAME}")
     }
     @Volatile private var localRuntime: ManaLiteRtLmRuntime? = null
+    private val modelDownloadInProgress = AtomicBoolean(false)
 
     fun hasLocalModel(): Boolean =
         localModelFile.isFile && localModelFile.length() >= 300_000_000L
