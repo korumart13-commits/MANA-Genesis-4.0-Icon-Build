@@ -57,6 +57,8 @@ def main() -> None:
     parser.add_argument("--project-dir", required=True, type=Path)
     parser.add_argument("--integration-dir", required=True, type=Path)
     parser.add_argument("--license-file", required=True, type=Path)
+    parser.add_argument("--avatar-file", type=Path)
+    parser.add_argument("--avatar-renderer-dir", type=Path)
     args = parser.parse_args()
 
     project = args.project_dir.resolve()
@@ -97,6 +99,25 @@ def main() -> None:
     assets = project / "app/src/main/assets"
     assets.mkdir(parents=True, exist_ok=True)
     shutil.copy2(license_file, assets / "manaos-license.txt")
+
+    # Bundle the generated original GLB and pinned local renderer; no runtime CDN access.
+    if bool(args.avatar_file) != bool(args.avatar_renderer_dir):
+        raise SystemExit("Avatar GLB and renderer directory must be supplied together.")
+    if args.avatar_file and args.avatar_renderer_dir:
+        avatar_file = args.avatar_file.resolve()
+        renderer_dir = args.avatar_renderer_dir.resolve()
+        if not avatar_file.is_file() or avatar_file.stat().st_size < 4096:
+            raise SystemExit("Generated MANA avatar GLB is missing or unexpectedly small.")
+        for renderer_name in ("three.module.js", "GLTFLoader.js"):
+            renderer_file = renderer_dir / renderer_name
+            if not renderer_file.is_file() or renderer_file.stat().st_size < 1024:
+                raise SystemExit(f"Required local 3D renderer file is missing: {renderer_file}")
+        avatar_assets = assets / "mana-avatar"
+        avatar_assets.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(avatar_file, avatar_assets / "mana_avatar.glb")
+        shutil.copy2(integration / "avatar" / "index.html", avatar_assets / "index.html")
+        shutil.copy2(renderer_dir / "three.module.js", avatar_assets / "three.module.js")
+        shutil.copy2(renderer_dir / "GLTFLoader.js", avatar_assets / "GLTFLoader.js")
 
     test_source = integration / "tests" / "ManaCoreTest.kt"
     if not test_source.is_file() or test_source.stat().st_size == 0:
@@ -244,6 +265,7 @@ def main() -> None:
     manifest.write_text(manifest_text, encoding="utf-8")
 
     print("Integrated MANA home activity, local self-development, license and Android core tests.")
+    print("Bundled original MANA GLB avatar and local Three.js renderer." if args.avatar_file else "Avatar bundle not supplied; app will show the fallback surface.")
     print("MANA home is the app entry point and HOME-role candidate; Android still controls default-launcher selection.")
     print("Cloud chat only activates when a real HTTPS gateway has already been configured; no endpoint is fabricated.")
 
