@@ -28,7 +28,7 @@ class ManaOwnerApprovalBroker(
     @Synchronized
     fun requestApproval(action: ManaCognitiveAction, summary: String): ManaApprovalRequest? {
         pruneExpired()
-        if (!isValidAction(action) || summary.isBlank() || summary.length > MAX_SUMMARY_LENGTH) {
+        if (ManaDefaultCognitivePolicy().check(action) != ManaActionVerdict.REQUIRES_OWNER_CONFIRMATION ||\n            !isValidAction(action) || summary.isBlank() || summary.length > MAX_SUMMARY_LENGTH) {
             record(action.name.take(80), "rejected", "invalid_request")
             return null
         }
