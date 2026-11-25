@@ -394,7 +394,7 @@ class ManaHomeActivity : Activity(), TextToSpeech.OnInitListener {
     override fun onDestroy() {
         gatewayChat.stop()
         voiceClient.cancel()
-        voicePlayer?.runCatching { stop() }
+        runCatching { voicePlayer?.stop() }
         voicePlayer?.release()
         voicePlayer = null
         textToSpeech?.stop()
