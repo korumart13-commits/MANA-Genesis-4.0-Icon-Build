@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.app.NotificationManager
+import android.media.AudioManager
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Environment
@@ -98,7 +99,29 @@ object ManaAndroidReadOnlyTools {
                 )
             }
         }
-        return ManaReadOnlyToolRegistry(listOf(findApps, battery, storage, status, notificationStatus))
+        val audioStatus = ManaReadOnlyToolDefinition("device.read_audio_status") { _, control ->
+            if (control.isStopRequested()) return@ManaReadOnlyToolDefinition ManaCognitiveToolResult(false, "Запрос остановлен.")
+            val manager = app.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+            if (manager == null) {
+                ManaCognitiveToolResult(false, "Состояние звука недоступно.")
+            } else {
+                val ringer = when (manager.ringerMode) {
+                    AudioManager.RINGER_MODE_NORMAL -> "обычный звонок"
+                    AudioManager.RINGER_MODE_VIBRATE -> "вибрация"
+                    AudioManager.RINGER_MODE_SILENT -> "без звука"
+                    else -> "неизвестный режим"
+                }
+                val ringVolume = manager.getStreamVolume(AudioManager.STREAM_RING)
+                val ringMax = manager.getStreamMaxVolume(AudioManager.STREAM_RING)
+                val mediaVolume = manager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                val mediaMax = manager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                ManaCognitiveToolResult(
+                    true,
+                    "Звук телефона: $ringer. Громкость звонка: $ringVolume из $ringMax. Громкость мультимедиа: $mediaVolume из $mediaMax."
+                )
+            }
+        }
+        return ManaReadOnlyToolRegistry(listOf(findApps, battery, storage, status, notificationStatus, audioStatus))
     }
 
     private fun formatBytes(bytes: Long): String {
