@@ -13,10 +13,11 @@ class ManaGatewayChatService(
 ) {
     private val appContext = context.applicationContext
     @Volatile private var activeSignal: ManaCancellationSignal? = null
+    private val approvalBroker = ManaOwnerApprovalBroker()
 
     fun isConfigured(): Boolean = ManaGatewayDeploymentConfig.isConfigured()
 
-    fun send(message: String, callback: (answer: String?, error: String?) -> Unit): Boolean {
+    fun send(message: String, callback: (answer: String?, error: String?, approvals: List<ManaApprovalRequest>) -> Unit): Boolean {
         if (!isConfigured() || message.isBlank()) return false
         stop()
         val signal = ManaCancellationSignal()
@@ -38,24 +39,34 @@ class ManaGatewayChatService(
                     policy = ManaDefaultCognitivePolicy(),
                     maxCycles = 3,
                     control = signal,
-                    dialogueState = dialogueState
+                    dialogueState = dialogueState,
+                    approvalBroker = approvalBroker
                 )
                 val result = runtime.respond(message, conversationId)
-                if (signal.isStopRequested()) callback(null, "Запрос остановлен.")
-                else callback(result.answer, null)
+                if (signal.isStopRequested()) callback(null, "Запрос остановлен.", emptyList())
+                else callback(result.answer, null, result.approvalRequests)
             } catch (error: Exception) {
                 val messageText = if (signal.isStopRequested()) {
                     "Запрос остановлен."
                 } else {
                     error.message?.take(300) ?: "Не удалось связаться со шлюзом MANA."
                 }
-                callback(null, messageText)
+                callback(null, messageText, emptyList())
             } finally {
                 if (activeSignal === signal) activeSignal = null
             }
         }, "mana-gateway-chat").start()
         return true
     }
+
+    fun confirmApproval(requestId: String): Boolean {
+        val token = approvalBroker.confirmFromOwnerUi(requestId, true) ?: return false
+        // No side-effecting executor is connected yet. Consume the approval without executing
+        // anything, and record explicitly that the approved action was not performed.
+        return approvalBroker.discardApprovedToken(token)
+    }
+
+    fun denyApproval(requestId: String): Boolean = approvalBroker.deny(requestId)
 
     fun stop(): Boolean = activeSignal?.requestStop() ?: false
 
