@@ -101,3 +101,18 @@ The gateway chat runtime now registers three local Android read-only tools:
 - `device.read_status`: combines Android release, battery percentage, and coarse storage availability.
 
 These tools request no runtime permission and cannot modify device state. They are passed to the model only when the user asks a question that needs device status, through the normal bounded tool cycle. The app inventory tool name remains reserved but is not registered: installed-app lists can reveal private habits and are not sent to the remote gateway. No app launching, settings changes, calls, messages, file writes, or deletion are implemented in this stage.
+
+
+## Exact-action owner approval broker
+
+The Android source tree now includes `ManaOwnerApprovalBroker`, a platform-neutral approval-token primitive for future side-effecting adapters.
+
+- Only actions already classified by `ManaDefaultCognitivePolicy` as `REQUIRES_OWNER_CONFIRMATION` can create an approval request. Denied, unknown, and read-only actions cannot use this path to obtain a token.
+- A request displays the action name and a short human-readable summary, and expires after 60 seconds by default (hard maximum two minutes).
+- The owner-facing UI must call `confirmFromOwnerUi` only from a deliberate confirmation interaction. A model proposal, background job, or network response is not owner confirmation.
+- An issued opaque token is bound to the exact action name and canonical SHA-256 fingerprint of all arguments. Any changed argument, changed action, expired token, missing token, or replay is rejected.
+- Tokens are single-use and removed before the authorization result is returned. The future adapter must consume the token immediately before execution and still check Android runtime permission / platform role.
+- Denials, approvals, expiry, mismatches, and consumption create a bounded in-memory audit trail. Argument values and secrets are not written to that audit trail.
+- Pending requests and tokens are memory-only and are lost when the process ends. This deliberately avoids persisting reusable approvals.
+
+This stage adds the approval primitive and unit tests only. It does not yet display a confirmation dialog, execute side-effecting Android actions, grant OS permissions, or change phone settings. Until a reviewed UI and concrete adapters are connected, side-effecting actions remain unavailable.
