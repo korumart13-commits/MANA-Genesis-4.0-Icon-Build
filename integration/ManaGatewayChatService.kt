@@ -68,6 +68,10 @@ class ManaGatewayChatService(
 
     fun denyApproval(requestId: String): Boolean = approvalBroker.deny(requestId)
 
+    fun pendingApprovalRequests(): List<ManaApprovalRequest> = approvalBroker.pendingRequests()
+
+    fun approvalAuditEvents(): List<ManaApprovalAuditEvent> = approvalBroker.auditEvents()
+
     fun stop(): Boolean = activeSignal?.requestStop() ?: false
 
     private object NoAvailableManaTools : ManaCancellableCognitiveTools {
