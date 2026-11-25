@@ -72,7 +72,7 @@ def main() -> None:
     target_dir = project / "app/src/main/java/com/mana/os/integration"
     target_dir.mkdir(parents=True, exist_ok=True)
     write_gateway_deployment_config(project, os.environ.get("MANA_GATEWAY_ENDPOINT", ""), os.environ.get("MANA_GATEWAY_HOST", ""))
-    for name in ("ManaGenesis.kt", "AndroidSelfDevelopment.kt", "ManaDevelopmentPipeline.kt", "ManaCognitiveRuntime.kt", "ManaLocalCognitiveMemory.kt", "ManaDialogueState.kt", "ManaDefaultCognitivePolicy.kt", "ManaGatewayReasoningModel.kt", "ManaAndroidGatewayCredentialStore.kt", "ManaGatewayChatService.kt", "ManaReadOnlyToolRegistry.kt", "ManaAndroidReadOnlyTools.kt", "ManaOwnerApprovalBroker.kt"):
+    for name in ("ManaGenesis.kt", "AndroidSelfDevelopment.kt", "ManaDevelopmentPipeline.kt", "ManaCognitiveRuntime.kt", "ManaLocalCognitiveMemory.kt", "ManaDialogueState.kt", "ManaDefaultCognitivePolicy.kt", "ManaGatewayReasoningModel.kt", "ManaAndroidGatewayCredentialStore.kt", "ManaGatewayChatService.kt", "ManaReadOnlyToolRegistry.kt", "ManaAndroidReadOnlyTools.kt", "ManaOwnerApprovalBroker.kt", "ManaApprovedActionValidation.kt", "ManaAndroidApprovedActionExecutor.kt"):
         source = integration / name
         if not source.is_file() or source.stat().st_size == 0:
             raise SystemExit(f"Required integration source is missing or empty: {source}")
@@ -122,6 +122,11 @@ def main() -> None:
         raise SystemExit(f"Required owner approval broker test source is missing or empty: {approval_test_source}")
     shutil.copy2(approval_test_source, app_test_target.parent / "ManaOwnerApprovalBrokerTest.kt")
 
+    approval_validation_test_source = integration / "tests" / "ManaApprovedActionValidationTest.kt"
+    if not approval_validation_test_source.is_file() or approval_validation_test_source.stat().st_size == 0:
+        raise SystemExit(f"Required approved action validation test source is missing or empty: {approval_validation_test_source}")
+    shutil.copy2(approval_validation_test_source, app_test_target.parent / "ManaApprovedActionValidationTest.kt")
+
     gateway_test_source = integration / "tests" / "ManaGatewayAdapterTest.kt"
     if not gateway_test_source.is_file() or gateway_test_source.stat().st_size == 0:
         raise SystemExit(f"Required gateway adapter test source is missing or empty: {gateway_test_source}")
@@ -166,6 +171,18 @@ def main() -> None:
 
     manifest = project / "app/src/main/AndroidManifest.xml"
     manifest_text = manifest.read_text(encoding="utf-8")
+    if "<queries>" not in manifest_text:
+        launcher_visibility = """    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+"""
+        manifest_text = replace_once(
+            manifest_text, "<application", launcher_visibility + "    <application",
+            "MANA launcher-only package visibility"
+        )
     old_launcher_filter = """            <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
